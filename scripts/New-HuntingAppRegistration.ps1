@@ -31,8 +31,9 @@
     Administrator can create the app but CANNOT consent to Microsoft Graph application permissions.
 
 .PARAMETER DisplayName
-    Name of the app registration. Default: 'Graph Security API - Hunting Demo'. If an app with this name already
-    exists it is reused (a fresh secret is added; consent is verified).
+    Exact name of the app registration. By default, the signed-in user's alias and a random six-character
+    alphanumeric suffix are appended to 'Graph Security API - Hunting Demo'. If an app with the resulting name
+    already exists it is reused (a fresh secret is added; consent is verified).
 .PARAMETER TenantId
     Tenant ID or verified domain to sign in to. Optional - also drives endpoint discovery.
 .PARAMETER Environment
@@ -41,6 +42,8 @@
     Lifetime of the client secret in months (1-24). Default 12 = "good for one year".
 .PARAMETER IncludeDelegatedScope
     Also configure the app for the delegated flow (scope + http://localhost public client + admin grant).
+.PARAMETER PreviewName
+    Sign in, generate the default app registration name, and exit before making any Graph or file changes.
 .PARAMETER SettingsFile
     Where to write the settings JSON. Default: HuntingDemo.settings.json next to this script.
 
@@ -50,6 +53,8 @@
     .\scripts\New-HuntingAppRegistration.ps1 -TenantId contoso.onmicrosoft.com -SecretValidityMonths 12 -IncludeDelegatedScope
 .EXAMPLE
     .\scripts\New-HuntingAppRegistration.ps1 -Environment AzureGov -TenantId <gov-tenant-id>
+.EXAMPLE
+    .\scripts\New-HuntingAppRegistration.ps1 -PreviewName
 
 .LINK
     https://learn.microsoft.com/graph/api/application-post-applications
@@ -64,7 +69,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $DisplayName = 'Graph Security API - Hunting Demo',
+    [string] $DisplayName,
 
     [string] $TenantId,
 
@@ -76,10 +81,13 @@ param(
 
     [switch] $IncludeDelegatedScope,
 
+    [switch] $PreviewName,
+
     [string] $SettingsFile = (Join-Path $PSScriptRoot 'HuntingDemo.settings.json')
 )
 
 $ErrorActionPreference = 'Stop'
+$DefaultDisplayName = 'Graph Security API - Hunting Demo'
 $GraphAppId  = '00000003-0000-0000-c000-000000000000'     # Microsoft Graph's own (well-known) application ID
 $Permission  = 'ThreatHunting.Read.All'
 
@@ -145,6 +153,17 @@ function Invoke-Graph {
     Invoke-MgGraphRequest @p
 }
 
+function New-RandomAlphaNumericString {
+    param([ValidateRange(1, 128)][int] $Length = 6)
+
+    $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    $result = [char[]]::new($Length)
+    for ($index = 0; $index -lt $Length; $index++) {
+        $result[$index] = $characters[[System.Security.Cryptography.RandomNumberGenerator]::GetInt32($characters.Length)]
+    }
+    -join $result
+}
+
 # ------------------------------------------------------------------------------------------------
 # 1. Sign in with the delegated scopes this script needs. An admin must consent to these too.
 # ------------------------------------------------------------------------------------------------
@@ -160,11 +179,26 @@ Connect-MgGraph @connect
 
 $ctx = Get-MgContext
 $tenant = $ctx.TenantId
+$accountAlias = ($ctx.Account -split '@', 2)[0].Trim()
+if ([string]::IsNullOrWhiteSpace($accountAlias)) { throw "Could not derive an alias from signed-in account '$($ctx.Account)'." }
+if (-not $DisplayName) {
+    $DisplayName = "$DefaultDisplayName - $accountAlias - $(New-RandomAlphaNumericString)"
+}
 # Pull the Graph host from the signed-in context's environment - the authoritative answer once logged in.
 $mgEnvObj = Get-MgEnvironment | Where-Object Name -eq $(if ($ctx.Environment) { $ctx.Environment } else { $ep.MgEnvironment })
 if ($mgEnvObj) { $ep.GraphHost = $mgEnvObj.GraphEndpoint.TrimEnd('/'); $ep.LoginHost = $mgEnvObj.AzureADEndpoint.TrimEnd('/') }
 $g = "$($ep.GraphHost)/v1.0"
 Write-Host "Signed in as $($ctx.Account) in tenant $tenant  |  scopes: $($ctx.Scopes -join ', ')`n" -ForegroundColor Green
+
+if ($PreviewName) {
+    Write-Host "Preview only - no Graph or file changes will be made." -ForegroundColor Yellow
+    Write-Host "App registration name: $DisplayName" -ForegroundColor Cyan
+    return [pscustomobject]@{
+        Account     = $ctx.Account
+        TenantId    = $tenant
+        DisplayName = $DisplayName
+    }
+}
 
 # ------------------------------------------------------------------------------------------------
 # 2. Look up Microsoft Graph's service principal and the ThreatHunting.Read.All app role (no hard-coded GUIDs).

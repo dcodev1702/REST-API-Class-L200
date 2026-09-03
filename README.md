@@ -28,7 +28,7 @@
 | [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated browser sign-in, admin consent, authorization-code redemption, the `scp` claim, and the Graph hunting call. |
 | [`JSON-Anatomy-Diagram.svg`](images/JSON-Anatomy-Diagram.svg) · [`JSON-Anatomy-Diagram.png`](images/JSON-Anatomy-Diagram.png) | Stand-alone diagram of a JSON object: keys/values, string, number, boolean, null, array, array of objects, nested object, with PowerShell 7 equivalents. Also embedded on slide 8. |
 | [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
-| [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates the app registration **programmatically through Graph REST calls**: `ThreatHunting.Read.All` (Application), tenant-wide admin consent, a 12-month client secret, and writes `scripts/HuntingDemo.settings.json`. |
+| [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates a uniquely named app registration (`Graph Security API - Hunting Demo - <alias> - <6 random characters>`) **programmatically through Graph REST calls**: `ThreatHunting.Read.All` (Application), tenant-wide admin consent, a 12-month client secret, and writes `scripts/HuntingDemo.settings.json`. |
 | [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly` (raw `Invoke-RestMethod`: discovery → token → Graph) or `-AuthMode Delegated` (`Connect-MgGraph` → `Invoke-MgGraphRequest`). Writes the JSON response to a file. |
 | [`SignIns-Last24h.kql`](SignIns-Last24h.kql) | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 | [`README-Facilitator-Notes.md`](README-Facilitator-Notes.md) | Presenter runbook: slide outline, day-before checklist, live-demo script, sources and facts to state precisely. |
@@ -53,7 +53,9 @@ cd REST-API-Class-L200
 
 # 2. One-time: create the app registration, grant admin consent, issue a 12-month secret
 #    (sign in as Privileged Role Administrator; add -TenantId <id-or-domain> if you have several tenants)
+.\scripts\New-HuntingAppRegistration.ps1 -PreviewName # optional; shows the generated name without creating anything
 .\scripts\New-HuntingAppRegistration.ps1
+#    -> names the app Graph Security API - Hunting Demo - <signed-in alias> - <6 random characters>
 #    -> prints Tenant ID, Client ID and the SECRET (shown once - copy it now)
 #    -> writes scripts\HuntingDemo.settings.json (identifiers + endpoints, never the secret)
 
@@ -118,11 +120,12 @@ EntraIdSignInEvents                              // Defender XDR advanced huntin
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
-| `-DisplayName` | `Graph Security API - Hunting Demo` | Reused if an app with this name exists (new secret added, consent verified). |
+| `-DisplayName` | generated after sign-in | `Graph Security API - Hunting Demo - <alias> - <6 random characters>`. Pass an exact name to override generation; an existing exact-name match is reused (new secret added, consent verified). |
 | `-TenantId` | *(current)* | Tenant ID or verified domain; also drives endpoint discovery. |
 | `-Environment` | *(discovered)* | `Public` or `AzureGov` override. |
 | `-SecretValidityMonths` | `12` | 1–24. Sets `passwordCredential.endDateTime`. |
 | `-IncludeDelegatedScope` | off | Also adds the delegated scope, `http://localhost` public-client redirect and an `oauth2PermissionGrant` (AllPrincipals). Leave off so learners see the consent prompt with the SDK's default app. |
+| `-PreviewName` | off | Signs in, prints the generated default name, and exits before any Graph or file changes. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Identifiers and endpoints only — the secret is never written. |
 
 Graph calls it makes (each printed as `VERB URI` while it runs): `GET /servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'` → `POST /applications` → `POST /applications/{id}/addPassword` → `POST /servicePrincipals` → `POST /servicePrincipals/{graphSpId}/appRoleAssignedTo` (= admin consent) → optional `POST /oauth2PermissionGrants`.
@@ -170,7 +173,7 @@ Recommended sequence: app registration and admin consent → app-only client cre
 
 | Symptom | Meaning | Fix |
 | --- | --- | --- |
-| `AADSTS7000215: Invalid client secret` | Wrong or expired secret | Re-run `.\scripts\New-HuntingAppRegistration.ps1` (adds a fresh secret) and update `$env:HUNT_CLIENT_SECRET`. |
+| `AADSTS7000215: Invalid client secret` | Wrong or expired secret | Re-run `.\scripts\New-HuntingAppRegistration.ps1` to create a fresh student-specific app and secret, then update `$env:HUNT_CLIENT_SECRET`. To add a secret to the same app instead, pass its exact name with `-DisplayName`. |
 | `AADSTS700016 / AADSTS90002` | Unknown client or tenant | Check `HuntingDemo.settings.json`; pass `-TenantId` / `-ClientId` explicitly. |
 | `HTTP 401` | No or invalid token | Token expired (≈1 h) or wrong cloud — check the `Endpoints :` line in the output. |
 | `HTTP 403` | Token lacks `ThreatHunting.Read.All` | Admin consent not granted or not replicated yet. Portal: App registrations → API permissions → status should read *Granted for &lt;tenant&gt;*. Wait 1–2 minutes after the setup script. |

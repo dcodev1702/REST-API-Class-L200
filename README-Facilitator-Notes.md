@@ -12,7 +12,7 @@
 | `class_content/Sim-AppOnly-Client-Credentials.html` | 12-step walkthrough of the app-only call: discovery, client-credentials token, `runHuntingQuery`, 401/403 boundaries, and JSON output. |
 | `class_content/Sim-Delegated-Sign-In-Consent.html` | 13-step walkthrough of delegated sign-in: browser authorization, admin-consent boundary, code redemption, `scp`, Graph call, and JSON output. |
 | `images/JSON-Anatomy-Diagram.svg` / `.png` | Stand-alone "Anatomy of a JSON Object" diagram (object, key/value pairs, six data types, array of objects, object within an object, PowerShell 7 type mapping). Same diagram is embedded on slide 8. |
-| `scripts/New-HuntingAppRegistration.ps1` | **Run once, the day before.** Creates the app registration programmatically through Graph REST calls: app + `ThreatHunting.Read.All` (Application) + tenant-wide admin consent (`appRoleAssignedTo`) + a **12-month client secret** (shown once). Writes `scripts/HuntingDemo.settings.json` (identifiers and endpoints — never the secret). Optional `-IncludeDelegatedScope`. |
+| `scripts/New-HuntingAppRegistration.ps1` | **Run once, the day before.** Creates a student-specific app registration named `Graph Security API - Hunting Demo - <alias> - <6 random characters>` through Graph REST calls: app + `ThreatHunting.Read.All` (Application) + tenant-wide admin consent (`appRoleAssignedTo`) + a **12-month client secret** (shown once). Writes `scripts/HuntingDemo.settings.json` (identifiers and endpoints — never the secret). Optional `-PreviewName` and `-IncludeDelegatedScope`. |
 | `scripts/Invoke-HuntingQuery.ps1` | The live-demo script. `-AuthMode AppOnly` (raw `Invoke-RestMethod`: discovery → token → Graph) or `-AuthMode Delegated` (`Connect-MgGraph` → `Invoke-MgGraphRequest`). Reads tenant / client ID / environment from `scripts/HuntingDemo.settings.json`. |
 | `SignIns-Last24h.kql` | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 
@@ -72,12 +72,13 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 5. **Create the app registration** — sign in as a **Privileged Role Administrator** (or Global Administrator). Cloud Application Administrator can create the app but cannot consent to Microsoft Graph *application* permissions.
 
    ```powershell
+   .\scripts\New-HuntingAppRegistration.ps1 -PreviewName # optional name preview; creates nothing
    .\scripts\New-HuntingAppRegistration.ps1               # add -TenantId <id-or-domain> if you have several tenants
    ```
 
-   What you will see, step by step (each line is a Graph REST call): `GET /servicePrincipals?$filter=appId eq '00000003-…'` (finds the `ThreatHunting.Read.All` app-role id — no hard-coded GUIDs), `POST /applications`, `POST /applications/{id}/addPassword` (12 months), `POST /servicePrincipals`, `POST /servicePrincipals/{graph}/appRoleAssignedTo` (= admin consent). It then prints **Tenant ID, Client ID and the secret — copy the secret now, it cannot be retrieved later** — and writes `scripts/HuntingDemo.settings.json`.
+   After sign-in, the script derives the alias from the account UPN and generates a six-character alphanumeric suffix so every student gets a distinct app name. What you will see, step by step (each line is a Graph REST call): `GET /servicePrincipals?$filter=appId eq '00000003-…'` (finds the `ThreatHunting.Read.All` app-role id — no hard-coded GUIDs), `POST /applications`, `POST /applications/{id}/addPassword` (12 months), `POST /servicePrincipals`, `POST /servicePrincipals/{graph}/appRoleAssignedTo` (= admin consent). It then prints **Tenant ID, Client ID and the secret — copy the secret now, it cannot be retrieved later** — and writes `scripts/HuntingDemo.settings.json`.
    Store the secret outside the scripts, e.g. `$env:HUNT_CLIENT_SECRET = '<secret>'` for the demo session (the demo script picks it up; otherwise it prompts). Prefer a certificate or managed identity for anything beyond a demo.
-   Portal check: Entra admin center → App registrations → *Graph Security API - Hunting Demo* → API permissions → status **Granted for &lt;tenant&gt;**.
+   Portal check: Entra admin center → App registrations → *Graph Security API - Hunting Demo - &lt;alias&gt; - &lt;6 random characters&gt;* → API permissions → status **Granted for &lt;tenant&gt;**.
 6. **Dry run both modes** (allow 1–2 minutes after step 5 for replication):
 
    ```powershell

@@ -24,6 +24,7 @@
 | --- | --- |
 | [`REST-APIs-JSON-Graph-Security-API.html`](REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
 | [`JSON-Anatomy-Diagram.svg`](images/JSON-Anatomy-Diagram.svg) · [`JSON-Anatomy-Diagram.png`](images/JSON-Anatomy-Diagram.png) | Stand-alone diagram of a JSON object: keys/values, string, number, boolean, null, array, array of objects, nested object, with PowerShell 7 equivalents. Also embedded on slide 8. |
+| [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
 | [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates the app registration **programmatically through Graph REST calls**: `ThreatHunting.Read.All` (Application), tenant-wide admin consent, a 12-month client secret, and writes `scripts/HuntingDemo.settings.json`. |
 | [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly` (raw `Invoke-RestMethod`: discovery → token → Graph) or `-AuthMode Delegated` (`Connect-MgGraph` → `Invoke-MgGraphRequest`). Writes the JSON response to a file. |
 | [`SignIns-Last24h.kql`](SignIns-Last24h.kql) | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
@@ -72,20 +73,7 @@ Allow 1–2 minutes between step 2 and step 4 for directory replication.
 
 Three REST calls, all visible in the console output:
 
-```mermaid
-sequenceDiagram
-    participant PS as PowerShell 7<br/>Invoke-RestMethod
-    participant ID as Microsoft Entra ID<br/>login.microsoftonline.{com|us}
-    participant G as Microsoft Graph<br/>{msgraph_host}/v1.0
-
-    PS->>ID: GET /{tenant}/v2.0/.well-known/openid-configuration  (no token)
-    ID-->>PS: 200 JSON  { token_endpoint, msgraph_host, ... }
-    PS->>ID: POST {token_endpoint}  (form: client_id, client_secret, scope=.default, grant_type)
-    ID-->>PS: 200 JSON  { access_token (JWT, roles: ThreatHunting.Read.All), expires_in }
-    PS->>G: POST /security/runHuntingQuery<br/>Authorization: Bearer <token> · Content-Type: application/json<br/>{ "Query": "<KQL>", "Timespan": "P1D" }
-    G-->>PS: 200 JSON  { schema: [ {name,type} ], results: [ {row} ] }
-    PS->>PS: ConvertTo-Json -Depth 10 | Set-Content SignIns-Last24h-<stamp>.json
-```
+[![Dark-neon sequence diagram of the REST API demo flow](images/rest-api-demo-flow-neon.png)](images/rest-api-demo-flow-neon.svg)
 
 | Step | Call | REST concept it teaches |
 | --- | --- | --- |

@@ -1,0 +1,21 @@
+// Every user who signed in successfully during the last 24 hours — one row per account.
+// Runs unchanged in Microsoft Defender > Advanced hunting, and as the "Query" property of
+// POST https://graph.microsoft.com/v1.0/security/runHuntingQuery  (permission: ThreatHunting.Read.All)
+//
+// EntraIdSignInEvents holds Microsoft Entra interactive + non-interactive sign-ins (requires Entra ID P2).
+// It replaces AADSignInEventsBeta, which is retired on 19 October 2026.
+EntraIdSignInEvents
+| where Timestamp > ago(24h)                     // time filter — the API "Timespan" also applies; the shorter wins
+| where ErrorCode == 0                           // 0 = successful sign-in; any other value is a failure code
+| summarize LastSignIn  = max(Timestamp),
+            SignInCount = count(),
+            Apps        = make_set(Application, 5)   // dynamic → arrives as a JSON array inside each row
+          by AccountUpn, AccountDisplayName          // one row per user
+| order by LastSignIn desc
+
+// Fallback when the tenant has no Entra ID P2 (needs Defender for Identity / Defender for Cloud Apps):
+// IdentityLogonEvents
+// | where Timestamp > ago(24h)
+// | where ActionType == "LogonSuccess"          // confirm the ActionType values in the in-portal schema reference
+// | summarize LastSignIn = max(Timestamp), SignInCount = count() by AccountUpn, AccountDisplayName
+// | order by LastSignIn desc

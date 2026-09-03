@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1020" width="2400" height="1020">
+<style>text{font-family:"Segoe UI Variable Text","Segoe UI","Noto Sans","Liberation Sans",Arial,sans-serif;} .mono{font-family:"Cascadia Code","Cascadia Mono",Consolas,"Liberation Mono","DejaVu Sans Mono",monospace;}</style>
+<rect x="0" y="0" width="2400" height="1020" rx="0" fill="#ffffff"/>
+<rect x="40" y="38" width="10" height="64" rx="4" fill="#0a84d6"/>
+<text x="70" y="76" font-size="44" fill="#1b1f2a" font-weight="700">Anatomy of a JSON Object</text>
+<text x="70" y="112" font-size="23" fill="#4b5563" font-weight="400">Keys and values  ·  six data types  ·  an array of objects  ·  an object within an object</text>
+<text x="2360" y="76" font-size="22" fill="#8a919e" font-weight="400" text-anchor="end">JSON = JavaScript Object Notation  ·  RFC 8259</text>
+<text x="2360" y="110" font-size="20" fill="#8a919e" font-weight="400" text-anchor="end">the representation that flows to, through, and from REST APIs</text>
+<rect x="40" y="150" width="940" height="760" rx="18" fill="#0f1420" stroke="#232a3a" stroke-width="2"/>
+<rect x="40" y="150" width="940" height="50" rx="18" fill="#161c2b"/>
+<rect x="40" y="174" width="940" height="26" rx="0" fill="#161c2b"/>
+<line x1="40" y1="200" x2="980" y2="200" stroke="#232a3a" stroke-width="2"/>
+<circle cx="68" cy="175.0" r="7" fill="#ff5f57"/>
+<circle cx="94" cy="175.0" r="7" fill="#febc2e"/>
+<circle cx="120" cy="175.0" r="7" fill="#28c840"/>
+<text x="156" y="182.0" font-size="19" fill="#5b6478" class="mono" font-weight="400">user.json</text>
+<text x="956" y="182.0" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">application/json</text>
+<rect x="54" y="498.0" width="912" height="164" rx="10" fill="#c4a2ff" opacity="0.13"/>
+<rect x="54" y="498.0" width="6" height="164" rx="3" fill="#c4a2ff"/>
+<text x="950" y="522.0" font-size="15" fill="#c4a2ff" font-weight="700" text-anchor="end">ARRAY OF OBJECTS</text>
+<rect x="54" y="666.0" width="912" height="164" rx="10" fill="#50e6ff" opacity="0.13"/>
+<rect x="54" y="666.0" width="6" height="164" rx="3" fill="#50e6ff"/>
+<text x="950" y="690.0" font-size="15" fill="#50e6ff" font-weight="700" text-anchor="end">OBJECT WITHIN AN OBJECT</text>
+<text x="88" y="231.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 1</text>
+<text x="112" y="231.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">{</tspan></text>
+<text x="88" y="273.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 2</text>
+<text x="112" y="273.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;id&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#8fe3a1">1042</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="315.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 3</text>
+<text x="112" y="315.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;displayName&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;Adele Vance&quot;</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="357.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 4</text>
+<text x="112" y="357.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;isActive&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#ff8ac2">true</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="399.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 5</text>
+<text x="112" y="399.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;manager&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#aab1bc">null</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="441.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 6</text>
+<text x="112" y="441.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;riskScore&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#8fe3a1">87.5</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="483.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 7</text>
+<text x="112" y="483.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;tags&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#c4a2ff">[</tspan><tspan fill="#f5b45a">&quot;admin&quot;</tspan><tspan fill="#c8ccd4">, </tspan><tspan fill="#f5b45a">&quot;mfa&quot;</tspan><tspan fill="#c4a2ff">]</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="525.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 8</text>
+<text x="112" y="525.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;signIns&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#c4a2ff">[</tspan></text>
+<text x="88" y="567.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end"> 9</text>
+<text x="112" y="567.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">    </tspan><tspan fill="#50e6ff">{ </tspan><tspan fill="#9cdcfe">&quot;app&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;Outlook&quot;</tspan><tspan fill="#c8ccd4">, </tspan><tspan fill="#9cdcfe">&quot;when&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;2026-09-02T14:03Z&quot;</tspan><tspan fill="#50e6ff"> }</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="609.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">10</text>
+<text x="112" y="609.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">    </tspan><tspan fill="#50e6ff">{ </tspan><tspan fill="#9cdcfe">&quot;app&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;Teams&quot;</tspan><tspan fill="#c8ccd4">,   </tspan><tspan fill="#9cdcfe">&quot;when&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;2026-09-02T09:47Z&quot;</tspan><tspan fill="#50e6ff"> }</tspan></text>
+<text x="88" y="651.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">11</text>
+<text x="112" y="651.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#c4a2ff">]</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="693.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">12</text>
+<text x="112" y="693.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#9cdcfe">&quot;location&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#50e6ff">{</tspan></text>
+<text x="88" y="735.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">13</text>
+<text x="112" y="735.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">    </tspan><tspan fill="#9cdcfe">&quot;country&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;US&quot;</tspan><tspan fill="#c8ccd4">,</tspan></text>
+<text x="88" y="777.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">14</text>
+<text x="112" y="777.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">    </tspan><tspan fill="#9cdcfe">&quot;city&quot;</tspan><tspan fill="#c8ccd4">: </tspan><tspan fill="#f5b45a">&quot;Reston&quot;</tspan></text>
+<text x="88" y="819.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">15</text>
+<text x="112" y="819.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">  </tspan><tspan fill="#50e6ff">}</tspan></text>
+<text x="88" y="861.64" font-size="17" fill="#5b6478" class="mono" font-weight="400" text-anchor="end">16</text>
+<text x="112" y="861.64" font-size="24" class="mono" xml:space="preserve"><tspan fill="#c8ccd4">}</tspan></text>
+<path d="M980,223 C1005.0,223 1005.0,188.0 1030,188.0" fill="none" stroke="#0a84d6" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="223" r="6" fill="#0a84d6"/>
+<rect x="1030" y="150" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="150" width="7" height="76" rx="3" fill="#0a84d6"/>
+<rect x="1052" y="172" width="196" height="32" rx="16" fill="#0a84d6"/>
+<text x="1150.0" y="194.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">OBJECT</text>
+<text x="1274" y="182" font-size="23" fill="#1b1f2a" font-weight="700">Object  { … }</text>
+<text x="1274" y="210" font-size="18.5" fill="#4b5563" font-weight="400">Unordered key/value pairs in curly braces; the root here is an object.</text>
+<text x="2338" y="182" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="210" font-size="18" fill="#0a84d6" class="mono" font-weight="700" text-anchor="end">[pscustomobject]</text>
+<path d="M980,265 C1005.0,265 1005.0,272.0 1030,272.0" fill="none" stroke="#0f4c81" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="265" r="6" fill="#0f4c81"/>
+<rect x="1030" y="234" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="234" width="7" height="76" rx="3" fill="#0f4c81"/>
+<rect x="1052" y="256" width="196" height="32" rx="16" fill="#0f4c81"/>
+<text x="1150.0" y="278.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">KEY : VALUE</text>
+<text x="1274" y="266" font-size="23" fill="#1b1f2a" font-weight="700">Key / value pair  &quot;id&quot;: 1042</text>
+<text x="1274" y="294" font-size="18.5" fill="#4b5563" font-weight="400">Key is a quoted string; colon, then value. Commas separate pairs.</text>
+<text x="2338" y="266" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="294" font-size="18" fill="#0f4c81" class="mono" font-weight="700" text-anchor="end">$obj.id  →  1042</text>
+<path d="M980,307 C1005.0,307 1005.0,356.0 1030,356.0" fill="none" stroke="#d97706" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="307" r="6" fill="#d97706"/>
+<rect x="1030" y="318" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="318" width="7" height="76" rx="3" fill="#d97706"/>
+<rect x="1052" y="340" width="196" height="32" rx="16" fill="#d97706"/>
+<text x="1150.0" y="362.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">STRING</text>
+<text x="1274" y="350" font-size="23" fill="#1b1f2a" font-weight="700">String  &quot;Adele Vance&quot;</text>
+<text x="1274" y="378" font-size="18.5" fill="#4b5563" font-weight="400">Unicode text in double quotes. Escape with backslash: \&quot; \\ \n \uXXXX.</text>
+<text x="2338" y="350" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="378" font-size="18" fill="#d97706" class="mono" font-weight="700" text-anchor="end">[string]</text>
+<path d="M980,349 C1005.0,349 1005.0,440.0 1030,440.0" fill="none" stroke="#db2777" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="349" r="6" fill="#db2777"/>
+<rect x="1030" y="402" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="402" width="7" height="76" rx="3" fill="#db2777"/>
+<rect x="1052" y="424" width="196" height="32" rx="16" fill="#db2777"/>
+<text x="1150.0" y="446.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">BOOLEAN</text>
+<text x="1274" y="434" font-size="23" fill="#1b1f2a" font-weight="700">Boolean  true / false</text>
+<text x="1274" y="462" font-size="18.5" fill="#4b5563" font-weight="400">Lowercase true or false, no quotes — &quot;true&quot; in quotes is a string.</text>
+<text x="2338" y="434" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="462" font-size="18" fill="#db2777" class="mono" font-weight="700" text-anchor="end">[bool]  →  $true / $false</text>
+<path d="M980,391 C1005.0,391 1005.0,524.0 1030,524.0" fill="none" stroke="#6b7280" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="391" r="6" fill="#6b7280"/>
+<rect x="1030" y="486" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="486" width="7" height="76" rx="3" fill="#6b7280"/>
+<rect x="1052" y="508" width="196" height="32" rx="16" fill="#6b7280"/>
+<text x="1150.0" y="530.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">NULL</text>
+<text x="1274" y="518" font-size="23" fill="#1b1f2a" font-weight="700">Null  null</text>
+<text x="1274" y="546" font-size="18.5" fill="#4b5563" font-weight="400">Explicitly 'no value' — not a missing key, not an empty string &quot;&quot;.</text>
+<text x="2338" y="518" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="546" font-size="18" fill="#6b7280" class="mono" font-weight="700" text-anchor="end">$null</text>
+<path d="M980,433 C1005.0,433 1005.0,608.0 1030,608.0" fill="none" stroke="#15803d" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="433" r="6" fill="#15803d"/>
+<rect x="1030" y="570" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="570" width="7" height="76" rx="3" fill="#15803d"/>
+<rect x="1052" y="592" width="196" height="32" rx="16" fill="#15803d"/>
+<text x="1150.0" y="614.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">NUMBER</text>
+<text x="1274" y="602" font-size="23" fill="#1b1f2a" font-weight="700">Number  1042  ·  87.5</text>
+<text x="1274" y="630" font-size="18.5" fill="#4b5563" font-weight="400">Integer or decimal, no quotes, no leading zeros; one numeric type.</text>
+<text x="2338" y="602" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="630" font-size="18" fill="#15803d" class="mono" font-weight="700" text-anchor="end">[int] / [long] / [double]</text>
+<path d="M980,475 C1005.0,475 1005.0,692.0 1030,692.0" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="475" r="6" fill="#7c3aed"/>
+<rect x="1030" y="654" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="654" width="7" height="76" rx="3" fill="#7c3aed"/>
+<rect x="1052" y="676" width="196" height="32" rx="16" fill="#7c3aed"/>
+<text x="1150.0" y="698.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">ARRAY</text>
+<text x="1274" y="686" font-size="23" fill="#1b1f2a" font-weight="700">Array  [ &quot;admin&quot;, &quot;mfa&quot; ]</text>
+<text x="1274" y="714" font-size="18.5" fill="#4b5563" font-weight="400">Ordered, zero-based list in square brackets; items can be any type.</text>
+<text x="2338" y="686" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="714" font-size="18" fill="#7c3aed" class="mono" font-weight="700" text-anchor="end">$obj.tags[0]  →  admin</text>
+<path d="M980,559 C1005.0,559 1005.0,776.0 1030,776.0" fill="none" stroke="#7c3aed" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="559" r="6" fill="#7c3aed"/>
+<rect x="1030" y="738" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="738" width="7" height="76" rx="3" fill="#7c3aed"/>
+<rect x="1052" y="760" width="196" height="32" rx="16" fill="#7c3aed"/>
+<text x="1150.0" y="782.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">ARRAY OF OBJECTS</text>
+<text x="1274" y="770" font-size="23" fill="#1b1f2a" font-weight="700">Array of objects  [ { … }, { … } ]</text>
+<text x="1274" y="798" font-size="18.5" fill="#4b5563" font-weight="400">Each item is an object — rows in a table. How APIs return collections.</text>
+<text x="2338" y="770" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="798" font-size="18" fill="#7c3aed" class="mono" font-weight="700" text-anchor="end">$obj.signIns[0].app → Outlook</text>
+<path d="M980,727 C1005.0,727 1005.0,860.0 1030,860.0" fill="none" stroke="#0a84d6" stroke-width="2.5" opacity="0.75"/>
+<circle cx="980" cy="727" r="6" fill="#0a84d6"/>
+<rect x="1030" y="822" width="1330" height="76" rx="12" fill="#f5f7fb" stroke="#dfe4ee" stroke-width="1.5"/>
+<rect x="1030" y="822" width="7" height="76" rx="3" fill="#0a84d6"/>
+<rect x="1052" y="844" width="196" height="32" rx="16" fill="#0a84d6"/>
+<text x="1150.0" y="866.5" font-size="14.5" fill="#ffffff" font-weight="700" text-anchor="middle" letter-spacing="1.2">NESTED OBJECT</text>
+<text x="1274" y="854" font-size="23" fill="#1b1f2a" font-weight="700">Object within an object  { … { … } }</text>
+<text x="1274" y="882" font-size="18.5" fill="#4b5563" font-weight="400">A value can itself be an object, at any depth. Use dot notation.</text>
+<text x="2338" y="854" font-size="13.5" fill="#8a919e" font-weight="700" text-anchor="end" letter-spacing="1.0">PowerShell 7</text>
+<text x="2338" y="882" font-size="18" fill="#0a84d6" class="mono" font-weight="700" text-anchor="end">$obj.location.city  →  Reston</text>
+<line x1="40" y1="944" x2="2360" y2="944" stroke="#dfe4ee" stroke-width="2"/>
+<text x="40" y="994" font-size="20" fill="#1b1f2a" font-weight="700">Six JSON data types</text>
+<rect x="300" y="968" width="150" height="38" rx="19" fill="#d97706"/>
+<text x="375.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">string</text>
+<rect x="464" y="968" width="150" height="38" rx="19" fill="#15803d"/>
+<text x="539.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">number</text>
+<rect x="628" y="968" width="170" height="38" rx="19" fill="#db2777"/>
+<text x="713.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">boolean</text>
+<rect x="812" y="968" width="150" height="38" rx="19" fill="#6b7280"/>
+<text x="887.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">null</text>
+<rect x="976" y="968" width="150" height="38" rx="19" fill="#0a84d6"/>
+<text x="1051.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">object</text>
+<rect x="1140" y="968" width="150" height="38" rx="19" fill="#7c3aed"/>
+<text x="1215.0" y="994" font-size="19" fill="#ffffff" class="mono" font-weight="700" text-anchor="middle">array</text>
+<text x="2360" y="994" font-size="18" fill="#4b5563" font-weight="400" text-anchor="end">Objects and arrays are containers; everything else is a value.   ConvertFrom-Json  /  ConvertTo-Json -Depth</text>
+</svg>

@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>REST APIs, JSON &amp; the Microsoft Graph Security API</title>
+<style>
+/* ============================================================
+   Microsoft editorial / Fluent dark deck — design system
+   Single self-contained file. No external dependencies.
+   Do NOT edit :root tokens or the JS engine — author slides only.
+   ============================================================ */
+
+:root{
+  /* surfaces */
+  --bg0:#06060a;
+  --stage0:#0b0b10;
+  --stage1:#100f17;
+  --surface:#15151c;
+  --surface2:#1a1a22;
+  --line:#2a2a35;
+  --line-soft:#1e1e27;
+  /* text */
+  --tx:#f4f4f7;
+  --tx2:#abadba;
+  --tx3:#73747f;
+  /* azure accent */
+  --az-bright:#7fe9ff;
+  --az:#50e6ff;
+  --az-deep:#0a84d6;
+  --accent: linear-gradient(100deg,#7fe9ff 0%, #2fa9ee 55%, #0a84d6 100%);
+  /* microsoft four-color */
+  --ms-red:#f25022;
+  --ms-green:#7fba00;
+  --ms-blue:#00a4ef;
+  --ms-yellow:#ffb900;
+  /* type scale — relative to the 16:9 stage via container query height units */
+  --fs-kicker: 1.85cqh;
+  --fs-title: 6.6cqh;
+  --fs-title-sm: 5.4cqh;
+  --fs-hero: 9.6cqh;
+  --fs-divider: 17cqh;
+  --fs-lead: 3.5cqh;
+  --fs-body: 2.45cqh;
+  --fs-item: 2.85cqh;
+  --fs-sub: 2cqh;
+  --fs-small: 1.6cqh;
+  --fs-figure: 11cqh;
+  --serif: "Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --sans: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono: "Cascadia Code","Cascadia Mono","Consolas",ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+html,body{ height:100%; }
+body{
+  background:
+    radial-gradient(1200px 800px at 80% -10%, #0d1320 0%, transparent 60%),
+    var(--bg0);
+  color:var(--tx);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+}
+
+/* ---- the 16:9 stage, scaled to fit & letterboxed ---- */
+#stage{
+  position:relative;
+  width:min(100vw, 177.78vh);
+  height:min(56.25vw, 100vh);
+  background:
+    radial-gradient(120% 130% at 12% 8%, var(--stage1) 0%, var(--stage0) 55%, #07070b 100%);
+  container-type:size;
+  container-name:stage;
+  overflow:hidden;
+  isolation:isolate;
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+
+/* ambient drifting glows */
+.glow{ position:absolute; border-radius:50%; filter:blur(60px); z-index:0; pointer-events:none; }
+.glow.g1{ width:55cqw; height:55cqw; left:-10cqw; top:-18cqh;
+  background:radial-gradient(circle, rgba(10,132,214,.20), transparent 65%); animation:drift1 26s ease-in-out infinite; }
+.glow.g2{ width:48cqw; height:48cqw; right:-12cqw; bottom:-20cqh;
+  background:radial-gradient(circle, rgba(80,230,255,.14), transparent 65%); animation:drift2 32s ease-in-out infinite; }
+@keyframes drift1{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(6cqw,4cqh) } }
+@keyframes drift2{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(-5cqw,-3cqh) } }
+
+/* fine grain overlay for texture (kills the flat "AI" gradient look) */
+#stage::after{
+  content:""; position:absolute; inset:0; z-index:6; pointer-events:none;
+  opacity:.035; mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ===================== chrome ===================== */
+.chrome-top{
+  position:absolute; top:4.6cqh; left:9cqw; right:9cqw; z-index:5;
+  display:flex; align-items:center; justify-content:flex-end;
+  pointer-events:none;
+}
+.ms-logo{ height:2.7cqh; width:auto; opacity:.92; }
+
+.chrome-bot{
+  position:absolute; left:9cqw; right:9cqw; bottom:4.4cqh; z-index:5;
+  display:flex; align-items:center; gap:3cqw;
+}
+.brandfoot{ font-size:var(--fs-small); letter-spacing:.18em; text-transform:uppercase;
+  color:var(--tx3); white-space:nowrap; }
+.brandfoot b{ color:var(--tx2); font-weight:600; }
+.progress{ flex:1; display:flex; gap:.55cqw; align-items:center; }
+.seg{ height:.32cqh; flex:1; background:#2a2a34; border-radius:2px; cursor:pointer;
+  transition:background .4s ease, transform .25s ease; }
+.seg:hover{ transform:scaleY(2.4); }
+.seg.past{ background:#2c6f95; }
+.seg.cur{ background:var(--accent); box-shadow:0 0 10px rgba(80,230,255,.5); }
+.counter{ font-family:var(--mono); font-size:var(--fs-small); color:var(--tx2);
+  letter-spacing:.1em; white-space:nowrap; }
+.counter b{ color:var(--az-bright); font-weight:600; }
+.controls{ display:flex; gap:1cqw; }
+.nav-btn{ width:3.4cqh; height:3.4cqh; border-radius:50%; border:1px solid var(--line);
+  background:rgba(255,255,255,.02); color:var(--tx2); cursor:pointer; display:grid; place-items:center;
+  transition:all .2s ease; font-size:1.8cqh; }
+.nav-btn:hover{ border-color:var(--az); color:var(--az-bright); background:rgba(80,230,255,.08); }
+.nav-btn svg{ width:1.7cqh; height:1.7cqh; }
+
+/* ===================== slides ===================== */
+#deck{ position:absolute; inset:0; z-index:2; }
+.slide{
+  position:absolute; inset:0;
+  padding:13cqh 9cqw 12cqh;
+  display:flex; flex-direction:column; justify-content:center;
+  opacity:0; visibility:hidden;
+  transform:translateY(1.4cqh) scale(.994);
+  transition:opacity .5s ease, transform .55s cubic-bezier(.22,.61,.36,1), visibility .5s;
+}
+.slide.is-active{ opacity:1; visibility:visible; transform:none; }
+
+/* staggered entrance for marked children */
+.slide [data-stagger]{ opacity:0; transform:translateY(1.6cqh); }
+.slide.is-active [data-stagger]{ animation:rise .62s cubic-bezier(.22,.61,.36,1) both;
+  animation-delay:calc(var(--i,0) * 80ms + 120ms); }
+@keyframes rise{ to{ opacity:1; transform:none; } }
+
+/* shared head block */
+.kicker{ display:flex; align-items:center; gap:1.1cqw; font-size:var(--fs-kicker);
+  text-transform:uppercase; letter-spacing:.32em; color:var(--tx2); font-weight:600; margin-bottom:2.4cqh; }
+.kicker::before{ content:""; width:.45cqw; height:2.2cqh; border-radius:2px; background:var(--accent);
+  box-shadow:0 0 10px rgba(80,230,255,.5); }
+.kicker .n{ font-family:var(--mono); color:var(--az-bright); letter-spacing:.1em; }
+
+.title{ font-family:var(--serif); font-weight:600; font-size:var(--fs-title);
+  line-height:1.02; letter-spacing:-.02em; color:var(--tx); max-width:100%; }
+.title .soft{ color:var(--tx2); font-weight:300; }
+.title-sm{ font-size:var(--fs-title-sm); }
+
+.rule{ height:.4cqh; width:9cqw; border-radius:3px; background:var(--accent); margin-top:2.6cqh;
+  transform-origin:left center; }
+.slide.is-active .rule{ animation:ruleGrow .8s .25s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes ruleGrow{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+
+.grad{ background:var(--accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+code,.mono{ font-family:var(--mono); }
+
+/* lead paragraph */
+.lead{ font-size:var(--fs-lead); line-height:1.42; color:var(--tx); font-weight:300;
+  max-width:92%; margin-top:3.4cqh; }
+.lead.tight{ margin-top:2.8cqh; }
+
+.eyebrow{ font-size:var(--fs-sub); text-transform:uppercase; letter-spacing:.28em;
+  color:var(--az-bright); font-weight:600; margin-bottom:1.8cqh; }
+
+/* ---------- slide 1 : hero ---------- */
+.s-hero{ justify-content:center; }
+.s-hero .kicker{ margin-bottom:3cqh; }
+.hero-title{ font-family:var(--serif); font-weight:300; font-size:5.4cqh; color:var(--tx2);
+  line-height:1.05; letter-spacing:-.01em; }
+.hero-title b{ display:block; font-weight:600; font-size:var(--fs-hero); color:var(--tx);
+  letter-spacing:-.025em; margin-top:.4cqh; }
+.hero-title b .grad{ background:var(--accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.hero-rule{ height:.45cqh; width:14cqw; background:var(--accent); border-radius:3px; margin:4.2cqh 0 3.6cqh;
+  transform-origin:left; }
+.slide.is-active .hero-rule{ animation:ruleGrow .9s .4s cubic-bezier(.22,.61,.36,1) both; }
+.byline{ font-size:var(--fs-body); color:var(--tx2); letter-spacing:.04em; display:flex; gap:1.4cqw; align-items:center; }
+.byline .dot{ width:.5cqh; height:.5cqh; border-radius:50%; background:var(--az); opacity:.7; }
+.byline b{ color:var(--tx); font-weight:600; }
+/* oversized decorative four-square motif */
+.hero-motif{ position:absolute; right:7cqw; top:50%; transform:translateY(-50%) rotate(-10deg);
+  width:26cqh; height:26cqh; z-index:1; opacity:.5; animation:floaty 14s ease-in-out infinite; }
+.hero-motif .sq{ position:absolute; width:46%; height:46%; border-radius:2cqh; }
+.hero-motif .sq:nth-child(1){ left:0; top:0; background:var(--ms-red); }
+.hero-motif .sq:nth-child(2){ right:0; top:0; background:var(--ms-green); }
+.hero-motif .sq:nth-child(3){ left:0; bottom:0; background:var(--ms-blue); }
+.hero-motif .sq:nth-child(4){ right:0; bottom:0; background:var(--ms-yellow); }
+.hero-motif::after{ content:""; position:absolute; inset:-30%; border-radius:50%;
+  background:radial-gradient(circle, rgba(80,230,255,.16), transparent 60%); filter:blur(20px); z-index:-1; }
+@keyframes floaty{ 0%,100%{ transform:translateY(-50%) rotate(-10deg) } 50%{ transform:translateY(-54%) rotate(-7deg) } }
+
+/* ---------- generic list (slide 2) ---------- */
+.list{ margin-top:3.6cqh; max-width:100%; columns:2; column-gap:6cqw; }
+.list .row{ display:flex; align-items:baseline; gap:2cqw; padding:1.7cqh 0;
+  border-top:1px solid var(--line-soft); break-inside:avoid; }
+.list .row .idx{ font-family:var(--mono); font-size:var(--fs-sub); color:var(--az); width:3.4cqw; flex:none; }
+.list .row .txt{ font-size:2.45cqh; color:var(--tx); font-weight:300; line-height:1.3; }
+
+/* ---------- slide 2 : agenda ---------- */
+.agenda{ margin-top:3.4cqh; }
+.ag-row{ display:grid; grid-template-columns:6cqw 1fr 1.25fr; gap:0 3.4cqw; align-items:baseline;
+  padding:2.15cqh 0; border-top:1px solid var(--line-soft); }
+.ag-row:first-child{ border-top:none; }
+.ag-num{ font-family:var(--serif); font-weight:600; font-size:3.4cqh; line-height:1; letter-spacing:-.02em;
+  background:var(--accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.ag-title{ font-size:2.7cqh; font-weight:600; color:var(--tx); letter-spacing:-.01em; line-height:1.15; }
+.ag-desc{ font-size:1.95cqh; color:var(--tx2); font-weight:300; line-height:1.35; }
+
+/* ---------- slide 3 : three columns ---------- */
+.cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-top:4cqh; }
+.col{ padding:0 3cqw; border-left:1px solid var(--line-soft); }
+.col:first-child{ padding-left:0; border-left:none; }
+.col .cidx{ font-family:var(--mono); font-size:2.4cqh; color:var(--az); opacity:.85; }
+.col h3{ font-family:var(--serif); font-size:3cqh; font-weight:600; color:var(--tx); margin:.8cqh 0 2.2cqh;
+  letter-spacing:-.01em; }
+.col ul{ list-style:none; }
+.col li{ font-size:1.95cqh; color:var(--tx2); font-weight:300; padding:.92cqh 0 .92cqh 2.3cqw;
+  position:relative; line-height:1.25; }
+.col li::before{ content:""; position:absolute; left:0; top:1.55cqh; width:.85cqw; height:.85cqw;
+  border-radius:50%; background:var(--az); opacity:.55; }
+
+/* ---------- slide 4 : AI gateway capability map ---------- */
+.aimap{ margin-top:2.4cqh; display:flex; flex-direction:column; }
+.band{ padding:1.7cqh 0; }
+.band + .band{ border-top:1px solid var(--line-soft); }
+.band-3{ display:grid; grid-template-columns:repeat(3,1fr); }
+.band-3 .cat{ padding:0 2.6cqw; border-left:1px solid var(--line-soft); }
+.band-3 .cat:first-child{ padding-left:0; border-left:none; }
+.aimap h3{ font-size:1.95cqh; font-weight:600; letter-spacing:.005em; margin-bottom:1cqh;
+  background:var(--accent); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.aimap ul{ list-style:none; }
+.aimap li{ font-size:1.62cqh; color:var(--tx2); font-weight:300; line-height:1.22;
+  padding:.58cqh 0 .58cqh 1.7cqw; position:relative; }
+.aimap li::before{ content:""; position:absolute; left:0; top:1.12cqh; width:.6cqw; height:.6cqw;
+  border-radius:50%; background:var(--az); opacity:.5; }
+.band-mid .midhead{ text-align:center; margin-bottom:1.2cqh; }
+.band-mid .midcols{ display:grid; grid-template-columns:repeat(3,1fr); }
+.band-mid .midcols > ul{ padding:0 2.6cqw; border-left:1px solid var(--line-soft); }
+.band-mid .midcols > ul:first-child{ padding-left:0; border-left:none; }
+
+/* ---------- slide 5 : split benefits / use cases ---------- */
+.split{ display:grid; grid-template-columns:1fr 1fr; gap:0 5cqw; margin-top:3.4cqh; }
+.split .pane{ padding-left:4cqw; border-left:1px solid var(--line-soft); }
+.split .pane:first-child{ padding-left:0; border-left:none; }
+.split .pane .it{ padding:1.5cqh 0; border-top:1px solid var(--line-soft); font-size:2.15cqh;
+  color:var(--tx2); font-weight:300; line-height:1.35; }
+.split .pane .it:first-of-type{ border-top:none; }
+.split .pane .it b{ color:var(--tx); font-weight:600; }
+
+/* ---------- slide 6 : horizontal pipeline ---------- */
+.pipe{ display:flex; align-items:flex-start; justify-content:space-between; margin-top:7cqh; gap:1cqw; }
+.pnode{ flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; }
+.pnode .circle{ width:7cqh; height:7cqh; border-radius:50%; border:1.5px solid var(--az);
+  display:grid; place-items:center; font-family:var(--mono); font-size:2.6cqh; color:var(--az-bright);
+  background:radial-gradient(circle at 30% 25%, rgba(80,230,255,.14), rgba(10,15,25,.6));
+  box-shadow:0 0 18px -4px rgba(80,230,255,.4); position:relative; z-index:2; }
+.pnode .plabel{ margin-top:2.2cqh; font-size:2.05cqh; color:var(--tx); font-weight:300; line-height:1.28; max-width:15cqw; }
+.pnode:not(:last-child)::after{ content:""; position:absolute; top:3.5cqh; left:calc(50% + 4cqh);
+  width:calc(100% - 7cqh); height:1.5px; background:linear-gradient(90deg, var(--az), rgba(80,230,255,.15)); z-index:1; }
+
+/* ---------- slide 7 : sizing rows ---------- */
+.sizing{ margin-top:3.4cqh; }
+.srow{ display:grid; grid-template-columns:30% 1fr; gap:3cqw; align-items:center;
+  padding:2.5cqh 0; border-top:1px solid var(--line-soft); }
+.srow:first-child{ border-top:none; }
+.srow .fig{ font-family:var(--serif); font-weight:600; font-size:5.2cqh; line-height:1; letter-spacing:-.02em; }
+.srow .fig small{ font-size:2.2cqh; color:var(--tx2); font-weight:300; display:block; margin-top:.6cqh; letter-spacing:.04em; }
+.srow .desc{ font-size:2.15cqh; color:var(--tx2); font-weight:300; line-height:1.4; }
+.srow .desc b{ color:var(--tx); font-weight:600; }
+
+/* ---------- slide 8 : auth table ---------- */
+.tbl{ margin-top:3cqh; width:100%; border-collapse:collapse; }
+.tbl thead th{ text-align:left; font-size:var(--fs-sub); text-transform:uppercase; letter-spacing:.2em;
+  color:var(--az-bright); font-weight:600; padding:0 2.5cqw 1.5cqh 0; border-bottom:1.5px solid rgba(80,230,255,.4); }
+.tbl tbody td{ padding:2cqh 2.5cqw 2cqh 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+.tbl tbody tr:last-child td{ border-bottom:none; }
+.tbl .opt{ width:34%; }
+.tbl .opt b{ font-size:2.35cqh; color:var(--tx); font-weight:600; line-height:1.25; }
+.tbl .opt .tag{ display:inline-block; margin-top:.8cqh; font-family:var(--mono); font-size:1.45cqh;
+  color:var(--tx3); }
+.tbl .cons{ font-size:1.78cqh; color:var(--tx2); font-weight:300; }
+.tbl .cons ul{ list-style:none; }
+.tbl .cons li{ padding:.55cqh 0 .55cqh 1.8cqw; position:relative; line-height:1.3; }
+.tbl .cons li::before{ content:""; position:absolute; left:0; top:1.15cqh; width:.7cqw; height:.7cqw;
+  border-radius:50%; background:var(--az); opacity:.5; }
+
+/* ---------- slide 9 : vertical timeline ---------- */
+.timeline{ position:relative; margin-top:3.4cqh; padding-left:1cqw; max-width:72cqw; margin-inline:auto; }
+.timeline::before{ content:""; position:absolute; left:1.55cqh; top:1cqh; bottom:1cqh; width:1.5px;
+  background:linear-gradient(180deg, var(--az), rgba(80,230,255,.12)); }
+.tstep{ position:relative; padding:1.5cqh 0 1.5cqh 6cqw; }
+.tstep .tnode{ position:absolute; left:0; top:1.3cqh; width:3.3cqh; height:3.3cqh; border-radius:50%;
+  border:1.5px solid var(--az); background:#0b0f17; display:grid; place-items:center;
+  font-family:var(--mono); font-size:1.7cqh; color:var(--az-bright); z-index:2;
+  box-shadow:0 0 14px -3px rgba(80,230,255,.5); }
+.tstep .ttxt{ font-size:2.35cqh; color:var(--tx); font-weight:300; line-height:1.35; }
+.tstep .ttxt code{ color:var(--az-bright); background:rgba(80,230,255,.08); padding:.1cqh .8cqw;
+  border-radius:.6cqh; font-size:2cqh; }
+
+/* ---------- slides 10 & 12 : section dividers ---------- */
+.s-divider{ align-items:center; justify-content:center; text-align:center; }
+.s-divider .dlabel{ font-size:var(--fs-kicker); text-transform:uppercase; letter-spacing:.5em;
+  color:var(--az-bright); font-weight:600; margin-bottom:2cqh; }
+.s-divider .dword{ font-family:var(--serif); font-weight:600; font-size:var(--fs-divider); line-height:.95;
+  letter-spacing:-.03em; position:relative; }
+.s-divider .dword::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-3cqh;
+  width:9cqw; height:.5cqh; background:var(--accent); border-radius:3px; }
+.s-divider .dglow{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:50cqw; height:50cqw; border-radius:50%; z-index:-1;
+  background:radial-gradient(circle, rgba(80,230,255,.16), transparent 62%); filter:blur(30px);
+  animation:pulse 6s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ opacity:.6; transform:translate(-50%,-50%) scale(1) } 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08) } }
+
+/* ---------- demo architecture diagram ---------- */
+.diagram{ width:fit-content; max-width:88cqw; margin:2.6cqh auto 0; background:#fbfcfe;
+  border-radius:1.6cqh; padding:1.8cqh 1.8cqw;
+  box-shadow:0 28px 66px -28px rgba(0,0,0,.82), 0 0 0 1px rgba(255,255,255,.06); }
+.diagram img{ display:block; max-height:43cqh; max-width:84cqw; width:auto; height:auto; }
+.diagram-cap{ text-align:center; font-size:1.72cqh; color:var(--tx2); font-weight:300;
+  margin-top:2.2cqh; max-width:66cqw; margin-inline:auto; line-height:1.5; }
+
+/* ---------- pricing : tiers / plan comparison ---------- */
+.tiers{ display:grid; grid-template-columns:repeat(3,1fr); margin-top:3.2cqh; }
+.tier{ padding:0 3cqw; border-left:1px solid var(--line-soft); }
+.tier:first-child{ padding-left:0; border-left:none; }
+.tname{ font-size:var(--fs-sub); text-transform:uppercase; letter-spacing:.2em; color:var(--az-bright);
+  font-weight:600; margin-bottom:1.5cqh; }
+.tprice{ font-family:var(--serif); font-weight:600; font-size:7cqh; line-height:.9; letter-spacing:-.03em; color:var(--tx); }
+.tprice span{ font-size:2.5cqh; color:var(--tx2); font-weight:300; letter-spacing:0; }
+.tmeta{ font-size:1.92cqh; color:var(--tx2); font-weight:300; line-height:1.45; margin-top:1.7cqh; }
+.tmeta b{ color:var(--tx); font-weight:600; }
+.price-foot{ margin-top:4cqh; }
+.price-foot .keynote{ font-size:1.92cqh; color:var(--tx2); font-weight:300; line-height:1.45;
+  border-left:.4cqw solid var(--az); padding:1.2cqh 0 1.2cqh 2cqw; background:rgba(80,230,255,.04); }
+.price-foot .keynote b{ color:var(--az-bright); font-weight:600; }
+.price-foot .src{ font-size:1.5cqh; color:var(--tx3); margin-top:1.4cqh; }
+
+/* ---------- slide 13 : terminal ---------- */
+.term{ margin-top:3.6cqh; width:100%; border-radius:1.4cqh; overflow:hidden; border:1px solid var(--line);
+  background:#0c0c12; box-shadow:0 30px 70px -30px rgba(0,0,0,.8); }
+.term .bar{ display:flex; align-items:center; gap:1cqw; padding:1.5cqh 2cqw; background:#16161d;
+  border-bottom:1px solid var(--line); }
+.term .bar .d{ width:1.4cqh; height:1.4cqh; border-radius:50%; }
+.term .bar .d.r{ background:#ff5f57; } .term .bar .d.y{ background:#febc2e; } .term .bar .d.g{ background:#28c840; }
+.term .bar .t{ margin-left:1.2cqw; font-family:var(--mono); font-size:1.5cqh; color:var(--tx3); }
+.term .body{ padding:2.6cqh 2.4cqw; font-family:var(--mono); font-size:2.05cqh; line-height:1.7; min-height:20cqh; }
+.term .ln{ white-space:pre-wrap; word-break:break-all; }
+.term .prompt{ color:var(--ms-green); }
+.term .prompt .path{ color:var(--az-bright); }
+.term .cmd{ color:var(--tx); }
+.term .cursor{ display:inline-block; width:1.05ch; height:2.05cqh; background:var(--az-bright);
+  transform:translateY(.4cqh); animation:blink 1.05s steps(1) infinite; }
+.term .out{ color:var(--tx3); }
+.term .out b{ color:var(--tx2); font-weight:400; }
+@keyframes blink{ 0%,50%{ opacity:1 } 50.01%,100%{ opacity:0 } }
+.term-cap{ margin-top:2.6cqh; font-size:var(--fs-sub); color:var(--tx3); }
+.term-cap b{ color:var(--tx2); font-weight:600; } .term-cap code{ color:var(--az-bright); }
+
+/* ===================== notes panel ===================== */
+.notes{ position:absolute; left:0; right:0; bottom:0; z-index:8;
+  background:linear-gradient(180deg, rgba(12,12,18,.86), rgba(8,8,12,.98));
+  border-top:1px solid var(--line); backdrop-filter:blur(14px);
+  padding:3cqh 9cqw 3.4cqh; max-height:42cqh; overflow:auto;
+  transform:translateY(101%); transition:transform .4s cubic-bezier(.22,.61,.36,1); }
+.notes.open{ transform:none; }
+.notes h4{ font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.3em; color:var(--az-bright);
+  margin-bottom:1.4cqh; display:flex; align-items:center; gap:1cqw; }
+.notes h4 .k{ font-family:var(--mono); color:var(--tx3); letter-spacing:.1em; text-transform:none; }
+.notes p{ font-size:1.95cqh; color:var(--tx2); font-weight:300; line-height:1.5; }
+.notes .empty{ color:var(--tx3); font-style:italic; }
+
+/* hint toast */
+.hint{ position:absolute; left:50%; bottom:11cqh; transform:translateX(-50%); z-index:9;
+  font-size:1.55cqh; color:var(--tx2); letter-spacing:.06em; background:rgba(20,20,28,.7);
+  border:1px solid var(--line); border-radius:10cqh; padding:1cqh 2.4cqw; backdrop-filter:blur(8px);
+  display:flex; gap:1.6cqw; align-items:center; transition:opacity .6s ease; }
+.hint kbd{ font-family:var(--mono); font-size:1.35cqh; color:var(--az-bright); background:rgba(80,230,255,.1);
+  border:1px solid rgba(80,230,255,.25); border-radius:.6cqh; padding:.15cqh .7cqw; }
+.hint.hide{ opacity:0; pointer-events:none; }
+
+/* ===================== reduced motion ===================== */
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .2s linear; transform:none !important; }
+  .slide [data-stagger]{ animation:none !important; opacity:1 !important; transform:none !important; }
+  .slide.is-active .rule,.slide.is-active .hero-rule{ animation:none !important; transform:none !important; }
+  .glow,.hero-motif,.s-divider .dglow{ animation:none !important; }
+  .term .cursor{ animation:none; }
+}
+
+/* small viewport guard so it never collapses awkwardly */
+@media (max-aspect-ratio:1/1){ .brandfoot{ display:none; } }
+</style>
+</head>
+<body>
+<div id="stage" role="application" aria-label="Presentation slideshow">
+
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+
+  <!-- top chrome: Microsoft logo (keep on every deck) -->
+  <div class="chrome-top">
+    <svg class="ms-logo" viewBox="0 0 124 24" role="img" aria-label="Microsoft">
+      <rect x="0" y="0" width="11" height="11" fill="#F25022"/>
+      <rect x="12" y="0" width="11" height="11" fill="#7FBA00"/>
+      <rect x="0" y="12" width="11" height="11" fill="#00A4EF"/>
+      <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+      <text x="29" y="18.3" font-family="Segoe UI, system-ui, sans-serif" font-size="17.5" letter-spacing="-0.3" fill="#ececed">Microsoft</text>
+    </svg>
+  </div>
+
+  <!-- ============ DECK ============ -->
+  <!-- Author slides here. The JS auto-numbers kickers ("NN / total") and the
+       counter, builds the progress bar, and wires navigation. Copy additional
+       layouts from references/SLIDE-PATTERNS.md. -->
+  <div id="deck">
+
+    <!-- 1 -->
+<section class="slide s-hero" data-kicker="">
+  <div class="hero-motif"><span class="sq"></span><span class="sq"></span><span class="sq"></span><span class="sq"></span></div>
+  <div class="kicker" data-stagger style="--i:0">Microsoft Security &nbsp;&middot;&nbsp; CSA Enablement Session</div>
+  <h1 class="hero-title" data-stagger style="--i:1">REST APIs, JSON &amp; the Microsoft Graph Security API
+    <b><span class="grad">From Anatomy to Live Demo</span></b></h1>
+  <div class="hero-rule"></div>
+  <div class="byline" data-stagger style="--i:3"><b>Lorenzo Ireland</b><span class="dot"></span>Principal Cloud Solution Architect<span class="dot"></span>Microsoft Federal</div>
+</section>
+
+    <!-- 2 -->
+<section class="slide s-agenda" data-kicker="Agenda">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">02 / 20</span> &nbsp;&middot;&nbsp; What we'll cover</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Agenda</h2>
+  <div class="rule"></div>
+  <div class="agenda">
+    <div class="ag-row" data-stagger style="--i:2"><span class="ag-num">01</span><div class="ag-title">Why REST APIs matter</div><div class="ag-desc">Bedrock of Cloud, GenAI, web apps and MCP &mdash; and what the acronym means</div></div>
+    <div class="ag-row" data-stagger style="--i:3"><span class="ag-num">02</span><div class="ag-title">Anatomy of a REST call</div><div class="ag-desc">Verb, URI, headers, body &rarr; status code, headers, body</div></div>
+    <div class="ag-row" data-stagger style="--i:4"><span class="ag-num">03</span><div class="ag-title">Anatomy of JSON</div><div class="ag-desc">Objects, key/value pairs, six data types, arrays of objects, nesting</div></div>
+    <div class="ag-row" data-stagger style="--i:5"><span class="ag-num">04</span><div class="ag-title">Microsoft Graph Security API</div><div class="ag-desc"><code>runHuntingQuery</code> &middot; <code>ThreatHunting.Read.All</code> &middot; admin consent &middot; tokens</div></div>
+    <div class="ag-row" data-stagger style="--i:6"><span class="ag-num">05</span><div class="ag-title">PowerShell 7, switch by switch</div><div class="ag-desc">Token &rarr; <code>Invoke-RestMethod</code> &rarr; response &rarr; JSON file</div></div>
+    <div class="ag-row" data-stagger style="--i:7"><span class="ag-num">06</span><div class="ag-title">Live demo &amp; Q&amp;A</div><div class="ag-desc">A real hunting query: everyone who signed in during the last 24 hours</div></div>
+  </div>
+</section>
+
+    <!-- 3 -->
+<section class="slide" data-kicker="Why it matters">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">03 / 20</span> &nbsp;&middot;&nbsp; Why it matters</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">REST APIs: the <span class="grad">bedrock</span> of the modern era</h2>
+  <div class="rule"></div>
+  <p class="lead" data-stagger style="--i:2">Every portal click, every AI prompt, every web app and every agent tool call is an <b style="color:var(--tx);font-weight:600">HTTP request carrying JSON</b>. Read one REST call and you can read them all.</p>
+  <div class="list">
+    <div class="row" data-stagger style="--i:3"><span class="idx">01</span><span class="txt"><b style="color:var(--tx);font-weight:600">Cloud</b> &mdash; ARM, Microsoft Graph, Defender, Sentinel: portals, CLIs, SDKs and IaC are all REST clients.</span></div>
+    <div class="row" data-stagger style="--i:4"><span class="idx">02</span><span class="txt"><b style="color:var(--tx);font-weight:600">GenAI</b> &mdash; a prompt to Azure OpenAI or Foundry is a <code>POST</code> with a JSON body; the answer is JSON.</span></div>
+    <div class="row" data-stagger style="--i:5"><span class="idx">03</span><span class="txt"><b style="color:var(--tx);font-weight:600">Web applications</b> &mdash; front ends talk to back ends, and services talk to each other, over REST.</span></div>
+    <div class="row" data-stagger style="--i:6"><span class="idx">04</span><span class="txt"><b style="color:var(--tx);font-weight:600">MCP</b> &mdash; servers speak JSON (JSON-RPC 2.0); the tools they expose to agents are mostly wrappers over REST APIs.</span></div>
+    <div class="row" data-stagger style="--i:7"><span class="idx">05</span><span class="txt"><b style="color:var(--tx);font-weight:600">Security ops</b> &mdash; Defender XDR alerts, incidents and hunting are exposed through the Graph Security API.</span></div>
+    <div class="row" data-stagger style="--i:8"><span class="idx">06</span><span class="txt"><b style="color:var(--tx);font-weight:600">Automation</b> &mdash; PowerShell, Logic Apps, GitHub Actions, Terraform: same verbs, same status codes.</span></div>
+  </div>
+</section>
+
+    <!-- 4 -->
+<section class="slide" data-kicker="Definitions">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">04 / 20</span> &nbsp;&middot;&nbsp; Definitions</div>
+  <h2 class="title" data-stagger style="--i:1">What the letters <span class="soft">stand for</span></h2>
+  <div class="rule"></div>
+  <div class="sizing">
+    <div class="srow" data-stagger style="--i:2">
+      <div class="fig grad">REST<small>REpresentational State Transfer</small></div>
+      <div class="desc"><b>An architectural style, not a product.</b> Resources are named by URIs, manipulated with standard HTTP verbs and exchanged as <i>representations</i> &mdash; almost always JSON. It is <b>stateless</b>: every request carries everything the server needs, including the access token.</div>
+    </div>
+    <div class="srow" data-stagger style="--i:3">
+      <div class="fig grad">API<small>Application Programming Interface</small></div>
+      <div class="desc"><b>A contract for software talking to software.</b> It defines what you may ask for, how to ask, and exactly what comes back &mdash; so a script, a Logic App or an AI agent can call it without a human clicking through a portal.</div>
+    </div>
+    <div class="srow" data-stagger style="--i:4">
+      <div class="fig grad">JSON<small>JavaScript Object Notation</small></div>
+      <div class="desc"><b>The representation.</b> The lightweight, human-readable text format that travels <b>to</b> the API in request bodies, <b>through</b> pipelines and agents, and <b>from</b> the API in every response &mdash; including errors.</div>
+    </div>
+  </div>
+</section>
+
+    <!-- 5 -->
+<section class="slide" data-kicker="REST anatomy">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">05 / 20</span> &nbsp;&middot;&nbsp; REST anatomy</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Anatomy of a <span class="grad">REST call</span></h2>
+  <div class="rule"></div>
+  <p class="lead tight" data-stagger style="--i:2">One request in, one response out &mdash; four parts each way.</p>
+  <div class="split">
+    <div class="pane" data-stagger style="--i:3">
+      <div class="eyebrow">The request</div>
+      <div class="it"><b>Method</b> &mdash; the verb: <code>GET</code> read &middot; <code>POST</code> create / run an action &middot; <code>PATCH</code> update &middot; <code>DELETE</code> remove</div>
+      <div class="it"><b>URI</b> &mdash; the noun: <code>https://graph.microsoft.com/v1.0/security/runHuntingQuery</code> (host &middot; version &middot; resource path)</div>
+      <div class="it"><b>Headers</b> &mdash; metadata: <code>Authorization: Bearer &lt;token&gt;</code> &middot; <code>Content-Type: application/json</code></div>
+      <div class="it"><b>Body</b> &mdash; the JSON payload (only for POST / PATCH / PUT)</div>
+    </div>
+    <div class="pane" data-stagger style="--i:4">
+      <div class="eyebrow">The response</div>
+      <div class="it"><b>Status code</b> &mdash; <code>2xx</code> success (200, 201, 202) &middot; <code>4xx</code> you (400, 401 no/invalid token, 403 missing permission, 429 throttled) &middot; <code>5xx</code> them</div>
+      <div class="it"><b>Headers</b> &mdash; <code>Content-Type</code> &middot; <code>request-id</code> (quote it in support cases) &middot; <code>Retry-After</code> on 429</div>
+      <div class="it"><b>Body</b> &mdash; the JSON representation of the result; errors are JSON too (<code>error.code</code>, <code>error.message</code>)</div>
+      <div class="it"><b>Stateless</b> &mdash; no server-side session; the token <i>is</i> the state</div>
+    </div>
+  </div>
+</section>
+
+    <!-- 6 -->
+<section class="slide" data-kicker="HTTP verbs">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">06 / 20</span> &nbsp;&middot;&nbsp; HTTP verbs</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Five verbs do <span class="soft">almost everything</span></h2>
+  <div class="rule"></div>
+  <table class="tbl">
+    <thead><tr><th class="opt">Verb &middot; Graph example</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr data-stagger style="--i:2">
+        <td class="opt"><b>GET &mdash; read</b><span class="tag">GET /v1.0/security/alerts_v2</span></td>
+        <td class="cons"><ul><li>Returns a representation; nothing changes server-side. Safe, idempotent, no body &mdash; repeat it freely.</li></ul></td>
+      </tr>
+      <tr data-stagger style="--i:3">
+        <td class="opt"><b>POST &mdash; create or act</b><span class="tag">POST /v1.0/security/runHuntingQuery</span></td>
+        <td class="cons"><ul><li>Creates a resource <i>or</i> runs an action with a body. <code>runHuntingQuery</code> is an action &mdash; that is why our call is a POST.</li></ul></td>
+      </tr>
+      <tr data-stagger style="--i:4">
+        <td class="opt"><b>PATCH &mdash; update</b><span class="tag">PATCH /v1.0/security/incidents/{id}</span></td>
+        <td class="cons"><ul><li>Partial update: send only the changed properties, e.g. <code>{ "status": "resolved" }</code>; everything else is left alone.</li></ul></td>
+      </tr>
+      <tr data-stagger style="--i:5">
+        <td class="opt"><b>PUT &mdash; replace</b><span class="tag">PUT /v1.0/me/drive/items/{id}/content</span></td>
+        <td class="cons"><ul><li>Create-or-replace the whole representation; idempotent. Rare in Graph outside content uploads.</li></ul></td>
+      </tr>
+      <tr data-stagger style="--i:6">
+        <td class="opt"><b>DELETE &mdash; remove</b><span class="tag">DELETE /v1.0/subscriptions/{id}</span></td>
+        <td class="cons"><ul><li>Idempotent, usually <code>204 No Content</code>. Deleting twice is not an error in principle &mdash; the second call finds nothing.</li></ul></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+    <!-- 7 -->
+<section class="slide" data-kicker="JSON">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">07 / 20</span> &nbsp;&middot;&nbsp; JSON</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">JSON: <span class="grad">to, through and from</span> every REST API</h2>
+  <div class="rule"></div>
+  <div class="split">
+    <div class="pane" data-stagger style="--i:2">
+      <div class="eyebrow">Why it matters</div>
+      <div class="it"><b>Text, not binary</b> &mdash; human-readable, language-agnostic (RFC 8259). PowerShell, Python and browsers all parse it natively.</div>
+      <div class="it"><b>To the API</b> &mdash; request bodies are JSON, declared with <code>Content-Type: application/json</code>.</div>
+      <div class="it"><b>Through the pipeline</b> &mdash; Logic Apps, Sentinel playbooks, MCP tool calls and AI agents hand JSON from step to step.</div>
+      <div class="it"><b>From the API</b> &mdash; every response is JSON, including errors (<code>error.code</code>, <code>error.message</code>).</div>
+    </div>
+    <div class="pane" data-stagger style="--i:3">
+      <div class="eyebrow">JSON in PowerShell 7</div>
+      <div class="it"><b>Invoke-RestMethod</b> deserializes JSON into <code>[pscustomobject]</code>; navigate with dot notation: <code>$r.results[0].AccountUpn</code>.</div>
+      <div class="it"><b>ConvertFrom-Json / ConvertTo-Json</b> &mdash; text &harr; objects. Mind <code>-Depth</code> (default 2) or nested data is flattened.</div>
+      <div class="it"><b>Hashtable &harr; object</b> &mdash; <code>@{ Query = $kql }</code> is the PowerShell shape of <code>{ "Query": "&hellip;" }</code>.</div>
+      <div class="it"><b>Test-Json</b> &mdash; validate a payload against a JSON Schema before you send it.</div>
+    </div>
+  </div>
+</section>
+
+    <!-- 8 -->
+<section class="slide s-diagram" data-kicker="JSON anatomy">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">08 / 20</span> &nbsp;&middot;&nbsp; JSON anatomy</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Anatomy of a <span class="grad">JSON object</span></h2>
+  <div class="rule"></div>
+  <div class="diagram" data-stagger style="--i:2">
+    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNDAwIDgwMCIgd2lkdGg9IjI0MDAiIGhlaWdodD0iODAwIj4KPHN0eWxlPnRleHR7Zm9udC1mYW1pbHk6IlNlZ29lIFVJIFZhcmlhYmxlIFRleHQiLCJTZWdvZSBVSSIsIk5vdG8gU2FucyIsIkxpYmVyYXRpb24gU2FucyIsQXJpYWwsc2Fucy1zZXJpZjt9IC5tb25ve2ZvbnQtZmFtaWx5OiJDYXNjYWRpYSBDb2RlIiwiQ2FzY2FkaWEgTW9ubyIsQ29uc29sYXMsIkxpYmVyYXRpb24gTW9ubyIsIkRlamFWdSBTYW5zIE1vbm8iLG1vbm9zcGFjZTt9PC9zdHlsZT4KPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjI0MDAiIGhlaWdodD0iODAwIiByeD0iMCIgZmlsbD0iI2ZmZmZmZiIvPgo8cmVjdCB4PSI0MCIgeT0iMjAiIHdpZHRoPSI5NDAiIGhlaWdodD0iNzYwIiByeD0iMTgiIGZpbGw9IiMwZjE0MjAiIHN0cm9rZT0iIzIzMmEzYSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxyZWN0IHg9IjQwIiB5PSIyMCIgd2lkdGg9Ijk0MCIgaGVpZ2h0PSI1MCIgcng9IjE4IiBmaWxsPSIjMTYxYzJiIi8+CjxyZWN0IHg9IjQwIiB5PSI0NCIgd2lkdGg9Ijk0MCIgaGVpZ2h0PSIyNiIgcng9IjAiIGZpbGw9IiMxNjFjMmIiLz4KPGxpbmUgeDE9IjQwIiB5MT0iNzAiIHgyPSI5ODAiIHkyPSI3MCIgc3Ryb2tlPSIjMjMyYTNhIiBzdHJva2Utd2lkdGg9IjIiLz4KPGNpcmNsZSBjeD0iNjgiIGN5PSI0NS4wIiByPSI3IiBmaWxsPSIjZmY1ZjU3Ii8+CjxjaXJjbGUgY3g9Ijk0IiBjeT0iNDUuMCIgcj0iNyIgZmlsbD0iI2ZlYmMyZSIvPgo8Y2lyY2xlIGN4PSIxMjAiIGN5PSI0NS4wIiByPSI3IiBmaWxsPSIjMjhjODQwIi8+Cjx0ZXh0IHg9IjE1NiIgeT0iNTIuMCIgZm9udC1zaXplPSIxOSIgZmlsbD0iIzViNjQ3OCIgY2xhc3M9Im1vbm8iIGZvbnQtd2VpZ2h0PSI0MDAiPnVzZXIuanNvbjwvdGV4dD4KPHRleHQgeD0iOTU2IiB5PSI1Mi4wIiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+YXBwbGljYXRpb24vanNvbjwvdGV4dD4KPHJlY3QgeD0iNTQiIHk9IjM2OC4wIiB3aWR0aD0iOTEyIiBoZWlnaHQ9IjE2NCIgcng9IjEwIiBmaWxsPSIjYzRhMmZmIiBvcGFjaXR5PSIwLjEzIi8+CjxyZWN0IHg9IjU0IiB5PSIzNjguMCIgd2lkdGg9IjYiIGhlaWdodD0iMTY0IiByeD0iMyIgZmlsbD0iI2M0YTJmZiIvPgo8dGV4dCB4PSI5NTAiIHk9IjM5Mi4wIiBmb250LXNpemU9IjE1IiBmaWxsPSIjYzRhMmZmIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5BUlJBWSBPRiBPQkpFQ1RTPC90ZXh0Pgo8cmVjdCB4PSI1NCIgeT0iNTM2LjAiIHdpZHRoPSI5MTIiIGhlaWdodD0iMTY0IiByeD0iMTAiIGZpbGw9IiM1MGU2ZmYiIG9wYWNpdHk9IjAuMTMiLz4KPHJlY3QgeD0iNTQiIHk9IjUzNi4wIiB3aWR0aD0iNiIgaGVpZ2h0PSIxNjQiIHJ4PSIzIiBmaWxsPSIjNTBlNmZmIi8+Cjx0ZXh0IHg9Ijk1MCIgeT0iNTYwLjAiIGZvbnQtc2l6ZT0iMTUiIGZpbGw9IiM1MGU2ZmYiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJlbmQiPk9CSkVDVCBXSVRISU4gQU4gT0JKRUNUPC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMTAyLjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDE8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMTAyLjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPns8L3RzcGFuPjwvdGV4dD4KPHRleHQgeD0iODgiIHk9IjE0NC4zNiIgZm9udC1zaXplPSIxNyIgZmlsbD0iIzViNjQ3OCIgY2xhc3M9Im1vbm8iIGZvbnQtd2VpZ2h0PSI0MDAiIHRleHQtYW5jaG9yPSJlbmQiPiAyPC90ZXh0Pgo8dGV4dCB4PSIxMTIiIHk9IjE0NC4zNiIgZm9udC1zaXplPSIyNiIgY2xhc3M9Im1vbm8iIHhtbDpzcGFjZT0icHJlc2VydmUiPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4gIDwvdHNwYW4+PHRzcGFuIGZpbGw9IiM5Y2RjZmUiPiZxdW90O2lkJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+OiA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOGZlM2ExIj4xMDQyPC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LDwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMTg2LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDM8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMTg2LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7ZGlzcGxheU5hbWUmcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij46IDwvdHNwYW4+PHRzcGFuIGZpbGw9IiNmNWI0NWEiPiZxdW90O0FkZWxlIFZhbmNlJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LDwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMjI4LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDQ8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMjI4LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7aXNBY3RpdmUmcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij46IDwvdHNwYW4+PHRzcGFuIGZpbGw9IiNmZjhhYzIiPnRydWU8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4sPC90c3Bhbj48L3RleHQ+Cjx0ZXh0IHg9Ijg4IiB5PSIyNzAuMzYiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiM1YjY0NzgiIGNsYXNzPSJtb25vIiBmb250LXdlaWdodD0iNDAwIiB0ZXh0LWFuY2hvcj0iZW5kIj4gNTwvdGV4dD4KPHRleHQgeD0iMTEyIiB5PSIyNzAuMzYiIGZvbnQtc2l6ZT0iMjYiIGNsYXNzPSJtb25vIiB4bWw6c3BhY2U9InByZXNlcnZlIj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+ICA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOWNkY2ZlIj4mcXVvdDttYW5hZ2VyJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+OiA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYWFiMWJjIj5udWxsPC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LDwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMzEyLjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDY8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMzEyLjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7cmlza1Njb3JlJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+OiA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOGZlM2ExIj44Ny41PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LDwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMzU0LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDc8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMzU0LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7dGFncyZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iI2M0YTJmZiI+WzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNmNWI0NWEiPiZxdW90O2FkbWluJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LCA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjZjViNDVhIj4mcXVvdDttZmEmcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzRhMmZmIj5dPC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LDwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iMzk2LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDg8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iMzk2LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7c2lnbklucyZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iI2M0YTJmZiI+WzwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iNDM4LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+IDk8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iNDM4LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgICA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjNTBlNmZmIj57IDwvdHNwYW4+PHRzcGFuIGZpbGw9IiM5Y2RjZmUiPiZxdW90O2FwcCZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iI2Y1YjQ1YSI+JnF1b3Q7T3V0bG9vayZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiwgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7d2hlbiZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iI2Y1YjQ1YSI+JnF1b3Q7MjAyNi0wOS0wMlQxNDowM1omcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjNTBlNmZmIj4gfTwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiw8L3RzcGFuPjwvdGV4dD4KPHRleHQgeD0iODgiIHk9IjQ4MC4zNiIgZm9udC1zaXplPSIxNyIgZmlsbD0iIzViNjQ3OCIgY2xhc3M9Im1vbm8iIGZvbnQtd2VpZ2h0PSI0MDAiIHRleHQtYW5jaG9yPSJlbmQiPjEwPC90ZXh0Pgo8dGV4dCB4PSIxMTIiIHk9IjQ4MC4zNiIgZm9udC1zaXplPSIyNiIgY2xhc3M9Im1vbm8iIHhtbDpzcGFjZT0icHJlc2VydmUiPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4gICAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzUwZTZmZiI+eyA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOWNkY2ZlIj4mcXVvdDthcHAmcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij46IDwvdHNwYW4+PHRzcGFuIGZpbGw9IiNmNWI0NWEiPiZxdW90O1RlYW1zJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+LCAgIDwvdHNwYW4+PHRzcGFuIGZpbGw9IiM5Y2RjZmUiPiZxdW90O3doZW4mcXVvdDs8L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij46IDwvdHNwYW4+PHRzcGFuIGZpbGw9IiNmNWI0NWEiPiZxdW90OzIwMjYtMDktMDJUMDk6NDdaJnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iIzUwZTZmZiI+IH08L3RzcGFuPjwvdGV4dD4KPHRleHQgeD0iODgiIHk9IjUyMi4zNiIgZm9udC1zaXplPSIxNyIgZmlsbD0iIzViNjQ3OCIgY2xhc3M9Im1vbm8iIGZvbnQtd2VpZ2h0PSI0MDAiIHRleHQtYW5jaG9yPSJlbmQiPjExPC90ZXh0Pgo8dGV4dCB4PSIxMTIiIHk9IjUyMi4zNiIgZm9udC1zaXplPSIyNiIgY2xhc3M9Im1vbm8iIHhtbDpzcGFjZT0icHJlc2VydmUiPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4gIDwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjNGEyZmYiPl08L3RzcGFuPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4sPC90c3Bhbj48L3RleHQ+Cjx0ZXh0IHg9Ijg4IiB5PSI1NjQuMzYiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiM1YjY0NzgiIGNsYXNzPSJtb25vIiBmb250LXdlaWdodD0iNDAwIiB0ZXh0LWFuY2hvcj0iZW5kIj4xMjwvdGV4dD4KPHRleHQgeD0iMTEyIiB5PSI1NjQuMzYiIGZvbnQtc2l6ZT0iMjYiIGNsYXNzPSJtb25vIiB4bWw6c3BhY2U9InByZXNlcnZlIj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+ICA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOWNkY2ZlIj4mcXVvdDtsb2NhdGlvbiZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iIzUwZTZmZiI+ezwvdHNwYW4+PC90ZXh0Pgo8dGV4dCB4PSI4OCIgeT0iNjA2LjM2IiBmb250LXNpemU9IjE3IiBmaWxsPSIjNWI2NDc4IiBjbGFzcz0ibW9ubyIgZm9udC13ZWlnaHQ9IjQwMCIgdGV4dC1hbmNob3I9ImVuZCI+MTM8L3RleHQ+Cjx0ZXh0IHg9IjExMiIgeT0iNjA2LjM2IiBmb250LXNpemU9IjI2IiBjbGFzcz0ibW9ubyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiAgICA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjOWNkY2ZlIj4mcXVvdDtjb3VudHJ5JnF1b3Q7PC90c3Bhbj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+OiA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjZjViNDVhIj4mcXVvdDtVUyZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPiw8L3RzcGFuPjwvdGV4dD4KPHRleHQgeD0iODgiIHk9IjY0OC4zNiIgZm9udC1zaXplPSIxNyIgZmlsbD0iIzViNjQ3OCIgY2xhc3M9Im1vbm8iIGZvbnQtd2VpZ2h0PSI0MDAiIHRleHQtYW5jaG9yPSJlbmQiPjE0PC90ZXh0Pgo8dGV4dCB4PSIxMTIiIHk9IjY0OC4zNiIgZm9udC1zaXplPSIyNiIgY2xhc3M9Im1vbm8iIHhtbDpzcGFjZT0icHJlc2VydmUiPjx0c3BhbiBmaWxsPSIjYzhjY2Q0Ij4gICAgPC90c3Bhbj48dHNwYW4gZmlsbD0iIzljZGNmZSI+JnF1b3Q7Y2l0eSZxdW90OzwvdHNwYW4+PHRzcGFuIGZpbGw9IiNjOGNjZDQiPjogPC90c3Bhbj48dHNwYW4gZmlsbD0iI2Y1YjQ1YSI+JnF1b3Q7UmVzdG9uJnF1b3Q7PC90c3Bhbj48L3RleHQ+Cjx0ZXh0IHg9Ijg4IiB5PSI2OTAuMzYiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiM1YjY0NzgiIGNsYXNzPSJtb25vIiBmb250LXdlaWdodD0iNDAwIiB0ZXh0LWFuY2hvcj0iZW5kIj4xNTwvdGV4dD4KPHRleHQgeD0iMTEyIiB5PSI2OTAuMzYiIGZvbnQtc2l6ZT0iMjYiIGNsYXNzPSJtb25vIiB4bWw6c3BhY2U9InByZXNlcnZlIj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+ICA8L3RzcGFuPjx0c3BhbiBmaWxsPSIjNTBlNmZmIj59PC90c3Bhbj48L3RleHQ+Cjx0ZXh0IHg9Ijg4IiB5PSI3MzIuMzYiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiM1YjY0NzgiIGNsYXNzPSJtb25vIiBmb250LXdlaWdodD0iNDAwIiB0ZXh0LWFuY2hvcj0iZW5kIj4xNjwvdGV4dD4KPHRleHQgeD0iMTEyIiB5PSI3MzIuMzYiIGZvbnQtc2l6ZT0iMjYiIGNsYXNzPSJtb25vIiB4bWw6c3BhY2U9InByZXNlcnZlIj48dHNwYW4gZmlsbD0iI2M4Y2NkNCI+fTwvdHNwYW4+PC90ZXh0Pgo8cGF0aCBkPSJNOTgwLDkzIEMxMDA1LjAsOTMgMTAwNS4wLDU4LjAgMTAzMCw1OC4wIiBmaWxsPSJub25lIiBzdHJva2U9IiMwYTg0ZDYiIHN0cm9rZS13aWR0aD0iMi41IiBvcGFjaXR5PSIwLjc1Ii8+CjxjaXJjbGUgY3g9Ijk4MCIgY3k9IjkzIiByPSI2IiBmaWxsPSIjMGE4NGQ2Ii8+CjxyZWN0IHg9IjEwMzAiIHk9IjIwIiB3aWR0aD0iMTMzMCIgaGVpZ2h0PSI3NiIgcng9IjEyIiBmaWxsPSIjZjVmN2ZiIiBzdHJva2U9IiNkZmU0ZWUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxyZWN0IHg9IjEwMzAiIHk9IjIwIiB3aWR0aD0iNyIgaGVpZ2h0PSI3NiIgcng9IjMiIGZpbGw9IiMwYTg0ZDYiLz4KPHJlY3QgeD0iMTA1MiIgeT0iNDIiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzBhODRkNiIvPgo8dGV4dCB4PSIxMTYyLjAiIHk9IjY1LjUiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiNmZmZmZmYiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSIxLjIiPk9CSkVDVDwvdGV4dD4KPHRleHQgeD0iMTI5OCIgeT0iNTMiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxYjFmMmEiIGZvbnQtd2VpZ2h0PSI3MDAiPk9iamVjdCAgeyDigKYgfTwvdGV4dD4KPHRleHQgeD0iMTI5OCIgeT0iODMiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiM0YjU1NjMiIGZvbnQtd2VpZ2h0PSI0MDAiPlVub3JkZXJlZCBrZXkvdmFsdWUgcGFpcnMgaW4gY3VybHkgYnJhY2VzOyB0aGUgcm9vdCBoZXJlIGlzIGFuIG9iamVjdC48L3RleHQ+CjxwYXRoIGQ9Ik05ODAsMTM1IEMxMDA1LjAsMTM1IDEwMDUuMCwxNDIuMCAxMDMwLDE0Mi4wIiBmaWxsPSJub25lIiBzdHJva2U9IiMwZjRjODEiIHN0cm9rZS13aWR0aD0iMi41IiBvcGFjaXR5PSIwLjc1Ii8+CjxjaXJjbGUgY3g9Ijk4MCIgY3k9IjEzNSIgcj0iNiIgZmlsbD0iIzBmNGM4MSIvPgo8cmVjdCB4PSIxMDMwIiB5PSIxMDQiIHdpZHRoPSIxMzMwIiBoZWlnaHQ9Ijc2IiByeD0iMTIiIGZpbGw9IiNmNWY3ZmIiIHN0cm9rZT0iI2RmZTRlZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPHJlY3QgeD0iMTAzMCIgeT0iMTA0IiB3aWR0aD0iNyIgaGVpZ2h0PSI3NiIgcng9IjMiIGZpbGw9IiMwZjRjODEiLz4KPHJlY3QgeD0iMTA1MiIgeT0iMTI2IiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMyIiByeD0iMTYiIGZpbGw9IiMwZjRjODEiLz4KPHRleHQgeD0iMTE2Mi4wIiB5PSIxNDkuNSIgZm9udC1zaXplPSIxNyIgZmlsbD0iI2ZmZmZmZiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjEuMiI+S0VZIDogVkFMVUU8L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjEzNyIgZm9udC1zaXplPSIyNyIgZmlsbD0iIzFiMWYyYSIgZm9udC13ZWlnaHQ9IjcwMCI+S2V5IC8gdmFsdWUgcGFpciAgJnF1b3Q7aWQmcXVvdDs6IDEwNDI8L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjE2NyIgZm9udC1zaXplPSIyMiIgZmlsbD0iIzRiNTU2MyIgZm9udC13ZWlnaHQ9IjQwMCI+S2V5IGlzIGEgcXVvdGVkIHN0cmluZzsgY29sb24sIHRoZW4gdmFsdWUuIENvbW1hcyBzZXBhcmF0ZSBwYWlycy48L3RleHQ+CjxwYXRoIGQ9Ik05ODAsMTc3IEMxMDA1LjAsMTc3IDEwMDUuMCwyMjYuMCAxMDMwLDIyNi4wIiBmaWxsPSJub25lIiBzdHJva2U9IiNkOTc3MDYiIHN0cm9rZS13aWR0aD0iMi41IiBvcGFjaXR5PSIwLjc1Ii8+CjxjaXJjbGUgY3g9Ijk4MCIgY3k9IjE3NyIgcj0iNiIgZmlsbD0iI2Q5NzcwNiIvPgo8cmVjdCB4PSIxMDMwIiB5PSIxODgiIHdpZHRoPSIxMzMwIiBoZWlnaHQ9Ijc2IiByeD0iMTIiIGZpbGw9IiNmNWY3ZmIiIHN0cm9rZT0iI2RmZTRlZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPHJlY3QgeD0iMTAzMCIgeT0iMTg4IiB3aWR0aD0iNyIgaGVpZ2h0PSI3NiIgcng9IjMiIGZpbGw9IiNkOTc3MDYiLz4KPHJlY3QgeD0iMTA1MiIgeT0iMjEwIiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjMyIiByeD0iMTYiIGZpbGw9IiNkOTc3MDYiLz4KPHRleHQgeD0iMTE2Mi4wIiB5PSIyMzMuNSIgZm9udC1zaXplPSIxNyIgZmlsbD0iI2ZmZmZmZiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjEuMiI+U1RSSU5HPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSIyMjEiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxYjFmMmEiIGZvbnQtd2VpZ2h0PSI3MDAiPlN0cmluZyAgJnF1b3Q7QWRlbGUgVmFuY2UmcXVvdDs8L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjI1MSIgZm9udC1zaXplPSIyMiIgZmlsbD0iIzRiNTU2MyIgZm9udC13ZWlnaHQ9IjQwMCI+VW5pY29kZSB0ZXh0IGluIGRvdWJsZSBxdW90ZXMuIEVzY2FwZSB3aXRoIGJhY2tzbGFzaDogXCZxdW90OyBcXCBcbiBcdVhYWFguPC90ZXh0Pgo8cGF0aCBkPSJNOTgwLDIxOSBDMTAwNS4wLDIxOSAxMDA1LjAsMzEwLjAgMTAzMCwzMTAuMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZGIyNzc3IiBzdHJva2Utd2lkdGg9IjIuNSIgb3BhY2l0eT0iMC43NSIvPgo8Y2lyY2xlIGN4PSI5ODAiIGN5PSIyMTkiIHI9IjYiIGZpbGw9IiNkYjI3NzciLz4KPHJlY3QgeD0iMTAzMCIgeT0iMjcyIiB3aWR0aD0iMTMzMCIgaGVpZ2h0PSI3NiIgcng9IjEyIiBmaWxsPSIjZjVmN2ZiIiBzdHJva2U9IiNkZmU0ZWUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxyZWN0IHg9IjEwMzAiIHk9IjI3MiIgd2lkdGg9IjciIGhlaWdodD0iNzYiIHJ4PSIzIiBmaWxsPSIjZGIyNzc3Ii8+CjxyZWN0IHg9IjEwNTIiIHk9IjI5NCIgd2lkdGg9IjIyMCIgaGVpZ2h0PSIzMiIgcng9IjE2IiBmaWxsPSIjZGIyNzc3Ii8+Cjx0ZXh0IHg9IjExNjIuMCIgeT0iMzE3LjUiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiNmZmZmZmYiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSIxLjIiPkJPT0xFQU48L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjMwNSIgZm9udC1zaXplPSIyNyIgZmlsbD0iIzFiMWYyYSIgZm9udC13ZWlnaHQ9IjcwMCI+Qm9vbGVhbiAgdHJ1ZSAvIGZhbHNlPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSIzMzUiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiM0YjU1NjMiIGZvbnQtd2VpZ2h0PSI0MDAiPkxvd2VyY2FzZSB0cnVlIG9yIGZhbHNlLCBubyBxdW90ZXMg4oCUICZxdW90O3RydWUmcXVvdDsgaW4gcXVvdGVzIGlzIGEgc3RyaW5nLjwvdGV4dD4KPHBhdGggZD0iTTk4MCwyNjEgQzEwMDUuMCwyNjEgMTAwNS4wLDM5NC4wIDEwMzAsMzk0LjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzZiNzI4MCIgc3Ryb2tlLXdpZHRoPSIyLjUiIG9wYWNpdHk9IjAuNzUiLz4KPGNpcmNsZSBjeD0iOTgwIiBjeT0iMjYxIiByPSI2IiBmaWxsPSIjNmI3MjgwIi8+CjxyZWN0IHg9IjEwMzAiIHk9IjM1NiIgd2lkdGg9IjEzMzAiIGhlaWdodD0iNzYiIHJ4PSIxMiIgZmlsbD0iI2Y1ZjdmYiIgc3Ryb2tlPSIjZGZlNGVlIiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8cmVjdCB4PSIxMDMwIiB5PSIzNTYiIHdpZHRoPSI3IiBoZWlnaHQ9Ijc2IiByeD0iMyIgZmlsbD0iIzZiNzI4MCIvPgo8cmVjdCB4PSIxMDUyIiB5PSIzNzgiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzZiNzI4MCIvPgo8dGV4dCB4PSIxMTYyLjAiIHk9IjQwMS41IiBmb250LXNpemU9IjE3IiBmaWxsPSIjZmZmZmZmIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMS4yIj5OVUxMPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSIzODkiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxYjFmMmEiIGZvbnQtd2VpZ2h0PSI3MDAiPk51bGwgIG51bGw8L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjQxOSIgZm9udC1zaXplPSIyMiIgZmlsbD0iIzRiNTU2MyIgZm9udC13ZWlnaHQ9IjQwMCI+RXhwbGljaXRseSAnbm8gdmFsdWUnIOKAlCBub3QgYSBtaXNzaW5nIGtleSwgbm90IGFuIGVtcHR5IHN0cmluZyAmcXVvdDsmcXVvdDsuPC90ZXh0Pgo8cGF0aCBkPSJNOTgwLDMwMyBDMTAwNS4wLDMwMyAxMDA1LjAsNDc4LjAgMTAzMCw0NzguMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTU4MDNkIiBzdHJva2Utd2lkdGg9IjIuNSIgb3BhY2l0eT0iMC43NSIvPgo8Y2lyY2xlIGN4PSI5ODAiIGN5PSIzMDMiIHI9IjYiIGZpbGw9IiMxNTgwM2QiLz4KPHJlY3QgeD0iMTAzMCIgeT0iNDQwIiB3aWR0aD0iMTMzMCIgaGVpZ2h0PSI3NiIgcng9IjEyIiBmaWxsPSIjZjVmN2ZiIiBzdHJva2U9IiNkZmU0ZWUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxyZWN0IHg9IjEwMzAiIHk9IjQ0MCIgd2lkdGg9IjciIGhlaWdodD0iNzYiIHJ4PSIzIiBmaWxsPSIjMTU4MDNkIi8+CjxyZWN0IHg9IjEwNTIiIHk9IjQ2MiIgd2lkdGg9IjIyMCIgaGVpZ2h0PSIzMiIgcng9IjE2IiBmaWxsPSIjMTU4MDNkIi8+Cjx0ZXh0IHg9IjExNjIuMCIgeT0iNDg1LjUiIGZvbnQtc2l6ZT0iMTciIGZpbGw9IiNmZmZmZmYiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSIxLjIiPk5VTUJFUjwvdGV4dD4KPHRleHQgeD0iMTI5OCIgeT0iNDczIiBmb250LXNpemU9IjI3IiBmaWxsPSIjMWIxZjJhIiBmb250LXdlaWdodD0iNzAwIj5OdW1iZXIgIDEwNDIgIMK3ICA4Ny41PC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSI1MDMiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiM0YjU1NjMiIGZvbnQtd2VpZ2h0PSI0MDAiPkludGVnZXIgb3IgZGVjaW1hbCwgbm8gcXVvdGVzLCBubyBsZWFkaW5nIHplcm9zOyBvbmUgbnVtZXJpYyB0eXBlLjwvdGV4dD4KPHBhdGggZD0iTTk4MCwzNDUgQzEwMDUuMCwzNDUgMTAwNS4wLDU2Mi4wIDEwMzAsNTYyLjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzdjM2FlZCIgc3Ryb2tlLXdpZHRoPSIyLjUiIG9wYWNpdHk9IjAuNzUiLz4KPGNpcmNsZSBjeD0iOTgwIiBjeT0iMzQ1IiByPSI2IiBmaWxsPSIjN2MzYWVkIi8+CjxyZWN0IHg9IjEwMzAiIHk9IjUyNCIgd2lkdGg9IjEzMzAiIGhlaWdodD0iNzYiIHJ4PSIxMiIgZmlsbD0iI2Y1ZjdmYiIgc3Ryb2tlPSIjZGZlNGVlIiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8cmVjdCB4PSIxMDMwIiB5PSI1MjQiIHdpZHRoPSI3IiBoZWlnaHQ9Ijc2IiByeD0iMyIgZmlsbD0iIzdjM2FlZCIvPgo8cmVjdCB4PSIxMDUyIiB5PSI1NDYiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzdjM2FlZCIvPgo8dGV4dCB4PSIxMTYyLjAiIHk9IjU2OS41IiBmb250LXNpemU9IjE3IiBmaWxsPSIjZmZmZmZmIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMS4yIj5BUlJBWTwvdGV4dD4KPHRleHQgeD0iMTI5OCIgeT0iNTU3IiBmb250LXNpemU9IjI3IiBmaWxsPSIjMWIxZjJhIiBmb250LXdlaWdodD0iNzAwIj5BcnJheSAgWyAmcXVvdDthZG1pbiZxdW90OywgJnF1b3Q7bWZhJnF1b3Q7IF08L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9IjU4NyIgZm9udC1zaXplPSIyMiIgZmlsbD0iIzRiNTU2MyIgZm9udC13ZWlnaHQ9IjQwMCI+T3JkZXJlZCwgemVyby1iYXNlZCBsaXN0IGluIHNxdWFyZSBicmFja2V0czsgaXRlbXMgY2FuIGJlIGFueSB0eXBlLjwvdGV4dD4KPHBhdGggZD0iTTk4MCw0MjkgQzEwMDUuMCw0MjkgMTAwNS4wLDY0Ni4wIDEwMzAsNjQ2LjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzdjM2FlZCIgc3Ryb2tlLXdpZHRoPSIyLjUiIG9wYWNpdHk9IjAuNzUiLz4KPGNpcmNsZSBjeD0iOTgwIiBjeT0iNDI5IiByPSI2IiBmaWxsPSIjN2MzYWVkIi8+CjxyZWN0IHg9IjEwMzAiIHk9IjYwOCIgd2lkdGg9IjEzMzAiIGhlaWdodD0iNzYiIHJ4PSIxMiIgZmlsbD0iI2Y1ZjdmYiIgc3Ryb2tlPSIjZGZlNGVlIiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8cmVjdCB4PSIxMDMwIiB5PSI2MDgiIHdpZHRoPSI3IiBoZWlnaHQ9Ijc2IiByeD0iMyIgZmlsbD0iIzdjM2FlZCIvPgo8cmVjdCB4PSIxMDUyIiB5PSI2MzAiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzdjM2FlZCIvPgo8dGV4dCB4PSIxMTYyLjAiIHk9IjY1My41IiBmb250LXNpemU9IjE3IiBmaWxsPSIjZmZmZmZmIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMS4yIj5BUlJBWSBPRiBPQkpFQ1RTPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSI2NDEiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxYjFmMmEiIGZvbnQtd2VpZ2h0PSI3MDAiPkFycmF5IG9mIG9iamVjdHMgIFsgeyDigKYgfSwgeyDigKYgfSBdPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSI2NzEiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiM0YjU1NjMiIGZvbnQtd2VpZ2h0PSI0MDAiPkVhY2ggaXRlbSBpcyBhbiBvYmplY3Qg4oCUIHJvd3MgaW4gYSB0YWJsZS4gSG93IEFQSXMgcmV0dXJuIGNvbGxlY3Rpb25zLjwvdGV4dD4KPHBhdGggZD0iTTk4MCw1OTcgQzEwMDUuMCw1OTcgMTAwNS4wLDczMC4wIDEwMzAsNzMwLjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBhODRkNiIgc3Ryb2tlLXdpZHRoPSIyLjUiIG9wYWNpdHk9IjAuNzUiLz4KPGNpcmNsZSBjeD0iOTgwIiBjeT0iNTk3IiByPSI2IiBmaWxsPSIjMGE4NGQ2Ii8+CjxyZWN0IHg9IjEwMzAiIHk9IjY5MiIgd2lkdGg9IjEzMzAiIGhlaWdodD0iNzYiIHJ4PSIxMiIgZmlsbD0iI2Y1ZjdmYiIgc3Ryb2tlPSIjZGZlNGVlIiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8cmVjdCB4PSIxMDMwIiB5PSI2OTIiIHdpZHRoPSI3IiBoZWlnaHQ9Ijc2IiByeD0iMyIgZmlsbD0iIzBhODRkNiIvPgo8cmVjdCB4PSIxMDUyIiB5PSI3MTQiIHdpZHRoPSIyMjAiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzBhODRkNiIvPgo8dGV4dCB4PSIxMTYyLjAiIHk9IjczNy41IiBmb250LXNpemU9IjE3IiBmaWxsPSIjZmZmZmZmIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMS4yIj5ORVNURUQgT0JKRUNUPC90ZXh0Pgo8dGV4dCB4PSIxMjk4IiB5PSI3MjUiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxYjFmMmEiIGZvbnQtd2VpZ2h0PSI3MDAiPk9iamVjdCB3aXRoaW4gYW4gb2JqZWN0ICB7IOKApiB7IOKApiB9IH08L3RleHQ+Cjx0ZXh0IHg9IjEyOTgiIHk9Ijc1NSIgZm9udC1zaXplPSIyMiIgZmlsbD0iIzRiNTU2MyIgZm9udC13ZWlnaHQ9IjQwMCI+QSB2YWx1ZSBjYW4gaXRzZWxmIGJlIGFuIG9iamVjdCwgYXQgYW55IGRlcHRoLiBVc2UgZG90IG5vdGF0aW9uLjwvdGV4dD4KPC9zdmc+" alt="Anatomy of a JSON object: object, key/value pairs, string, boolean, null, number, array, array of objects, nested object" />
+  </div>
+  <div class="diagram-cap" data-stagger style="--i:3">One object, six data types, an <b style="color:var(--tx);font-weight:600">array of objects</b> (rows in a table) and an <b style="color:var(--tx);font-weight:600">object within an object</b>. Whitespace is irrelevant; keys are unique and case-sensitive; there are no comments and no trailing commas.</div>
+</section>
+
+    <!-- 9 -->
+<section class="slide" data-kicker="Data types">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">09 / 20</span> &nbsp;&middot;&nbsp; Data types</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Six JSON types <span class="soft">&rarr; PowerShell 7</span></h2>
+  <div class="rule"></div>
+  <table class="tbl">
+    <thead><tr><th class="opt">JSON &middot; example</th><th>Rules &rarr; PowerShell 7 equivalent</th></tr></thead>
+    <tbody>
+      <tr data-stagger style="--i:2"><td class="opt"><b>string &middot; <code>"Adele Vance"</code></b></td>
+        <td class="cons"><ul><li>Double quotes only; escape <code>\" \\ \n \uXXXX</code>; dates are ISO 8601 strings &rarr; <code>[string]</code>, cast <code>[datetime]</code></li></ul></td></tr>
+      <tr data-stagger style="--i:3"><td class="opt"><b>number &middot; <code>1042</code> <code>87.5</code></b></td>
+        <td class="cons"><ul><li>No quotes, no leading zeros; one numeric type &rarr; <code>[int]</code> / <code>[long]</code> / <code>[double]</code> &mdash; the client picks the width</li></ul></td></tr>
+      <tr data-stagger style="--i:4"><td class="opt"><b>boolean &middot; <code>true</code> <code>false</code></b></td>
+        <td class="cons"><ul><li>Lowercase and unquoted &mdash; <code>"true"</code> is a string &rarr; <code>$true</code> / <code>$false</code> (<code>[bool]</code>)</li></ul></td></tr>
+      <tr data-stagger style="--i:5"><td class="opt"><b>null &middot; <code>null</code></b></td>
+        <td class="cons"><ul><li>Explicitly "no value" &mdash; different from a missing key and from <code>""</code> &rarr; <code>$null</code></li></ul></td></tr>
+      <tr data-stagger style="--i:6"><td class="opt"><b>object &middot; <code>{ "key": value }</code></b></td>
+        <td class="cons"><ul><li>Unordered key/value pairs; keys are unique quoted strings &rarr; <code>[pscustomobject]</code> (or <code>-AsHashtable</code>); build with <code>@{ }</code></li></ul></td></tr>
+      <tr data-stagger style="--i:7"><td class="opt"><b>array &middot; <code>[ v1, v2 ]</code></b></td>
+        <td class="cons"><ul><li>Ordered, zero-based, mixed types allowed; an array of objects = a collection &rarr; <code>[object[]]</code>, <code>$r.results[0]</code></li></ul></td></tr>
+    </tbody>
+  </table>
+</section>
+
+    <!-- 10 -->
+<section class="slide s-divider" data-kicker="">
+  <div class="dglow"></div>
+  <div class="dlabel" data-stagger style="--i:0">Microsoft Graph</div>
+  <div class="dword" data-stagger style="--i:1"><span class="grad">Security API</span></div>
+</section>
+
+    <!-- 11 -->
+<section class="slide" data-kicker="Graph Security API">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">11 / 20</span> &nbsp;&middot;&nbsp; Graph Security API</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Advanced hunting <span class="soft">through Microsoft Graph</span></h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col" data-stagger style="--i:2">
+      <div class="cidx">01</div><h3>The endpoint</h3>
+      <ul>
+        <li><code>POST /v1.0/security/runHuntingQuery</code></li>
+        <li>Graph Security API = one broker in front of Microsoft security providers; Defender XDR answers this call</li>
+        <li>Hunts across devices, identities, email and apps with KQL</li>
+        <li>Available in Global, US Gov L4 (GCC High) and L5 (DoD); not in China</li>
+        <li>Replaces the legacy <code>api.security.microsoft.com</code> hunting API (retirement began Jan 2026)</li>
+      </ul>
+    </div>
+    <div class="col" data-stagger style="--i:3">
+      <div class="cidx">02</div><h3>The request</h3>
+      <ul>
+        <li><code>Authorization: Bearer &lt;token&gt;</code></li>
+        <li><code>Content-Type: application/json</code> &mdash; add <code>; charset=utf-8</code> for non-ANSI characters in KQL</li>
+        <li><code>Query</code> (string, required) &mdash; the KQL</li>
+        <li><code>Timespan</code> (optional, ISO 8601) &mdash; <code>P1D</code>, <code>P30D</code>, start/end; default 30 days; shorter of query filter vs Timespan wins</li>
+        <li><code>workspaceId</code> (optional) &mdash; target a Sentinel workspace</li>
+      </ul>
+    </div>
+    <div class="col" data-stagger style="--i:4">
+      <div class="cidx">03</div><h3>Response &amp; quotas</h3>
+      <ul>
+        <li><code>200 OK</code> &rarr; <code>huntingQueryResults</code></li>
+        <li><code>schema[]</code> &mdash; one object per column: <code>name</code>, <code>type</code></li>
+        <li><code>results[]</code> &mdash; one object per row</li>
+        <li>Hunting service quotas: 30-day lookback &middot; up to 100,000 rows &middot; at least 45 calls/min per tenant &middot; 3-minute timeout</li>
+        <li><code>429</code> = CPU quota reached &mdash; read the body, honor <code>Retry-After</code></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+    <!-- 12 -->
+<section class="slide" data-kicker="Permissions">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">12 / 20</span> &nbsp;&middot;&nbsp; Permissions</div>
+  <h2 class="title title-sm" data-stagger style="--i:1"><code style="font-size:.85em">ThreatHunting.Read.All</code> &amp; <span class="grad">admin consent</span></h2>
+  <div class="rule"></div>
+  <div class="split">
+    <div class="pane" data-stagger style="--i:2">
+      <div class="eyebrow">The permission</div>
+      <div class="it"><b>Display name</b> &mdash; "Run hunting queries". The least-privileged permission for <code>runHuntingQuery</code>; there is no lower option.</div>
+      <div class="it"><b>Delegated (scope)</b> &mdash; "on behalf of the signed-in user". The app can never see more than that user could in the portal.</div>
+      <div class="it"><b>Application (app role)</b> &mdash; "without a signed-in user". For daemons, pipelines and scheduled automation.</div>
+      <div class="it"><b>Admin consent required: Yes</b> &mdash; for both. A regular user cannot approve it; the sign-in prompt says "Need admin approval" until an admin consents.</div>
+    </div>
+    <div class="pane" data-stagger style="--i:3">
+      <div class="eyebrow">Admin consent &mdash; purpose &amp; mechanics</div>
+      <div class="it"><b>Purpose</b> &mdash; the permission exposes tenant-wide security telemetry; a privileged human must review what an app gets before any token is issued.</div>
+      <div class="it"><b>Who</b> &mdash; Privileged Role Administrator (any permission); Cloud Application / Application Administrator (all but Graph <i>application</i> roles).</div>
+      <div class="it"><b>How</b> &mdash; App registrations &rarr; API permissions &rarr; <b>Grant admin consent</b>; the <code>/adminconsent?client_id=</code> URL; the prompt's "Consent on behalf of your organization"; or programmatically &mdash; <code>POST &hellip;/appRoleAssignedTo</code>.</div>
+      <div class="it"><b>Result</b> &mdash; <code>OAuth2PermissionGrant</code> (delegated) or <code>appRoleAssignment</code> (application); the token then carries <code>scp</code> or <code>roles</code> = <code>ThreatHunting.Read.All</code>.</div>
+    </div>
+  </div>
+</section>
+
+    <!-- 13 -->
+<section class="slide" data-kicker="OAuth 2.0">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">13 / 20</span> &nbsp;&middot;&nbsp; OAuth 2.0</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">How the <span class="grad">token</span> flows</h2>
+  <div class="rule"></div>
+  <div class="timeline">
+    <div class="tstep" data-stagger style="--i:2"><div class="tnode">1</div><div class="ttxt"><b style="color:var(--tx);font-weight:600">Register &amp; consent</b> &mdash; an app registration asks for Microsoft Graph &rarr; <code>ThreatHunting.Read.All</code>; an admin grants consent. <code>New-HuntingAppRegistration.ps1</code> does all of it with Graph calls, plus a 12-month secret.</div></div>
+    <div class="tstep" data-stagger style="--i:3"><div class="tnode">2</div><div class="ttxt"><b style="color:var(--tx);font-weight:600">Request a token</b> &mdash; <code>POST</code> the <code>token_endpoint</code> from the tenant's OpenID discovery document with <code>client_id</code>, <code>client_secret</code> (or certificate), <code>scope=https://{msgraph_host}/.default</code>, <code>grant_type=client_credentials</code>. Public or Azure Government &mdash; same code.</div></div>
+    <div class="tstep" data-stagger style="--i:4"><div class="tnode">3</div><div class="ttxt"><b style="color:var(--tx);font-weight:600">Receive JSON</b> &mdash; <code>access_token</code> is a signed JWT (about an hour): <code>aud</code> = Graph, <code>roles</code> = ["ThreatHunting.Read.All"] (delegated tokens carry <code>scp</code> instead). Decode it at jwt.ms.</div></div>
+    <div class="tstep" data-stagger style="--i:5"><div class="tnode">4</div><div class="ttxt"><b style="color:var(--tx);font-weight:600">Call Graph</b> &mdash; <code>Authorization: Bearer &lt;token&gt;</code> + a JSON body &rarr; <code>POST /v1.0/security/runHuntingQuery</code>.</div></div>
+    <div class="tstep" data-stagger style="--i:6"><div class="tnode">5</div><div class="ttxt"><b style="color:var(--tx);font-weight:600">Graph validates</b> signature, audience, expiry and the permission claim, runs the KQL, and answers <code>200 OK</code> + <code>huntingQueryResults</code>. No token &rarr; <code>401</code>; token without the claim &rarr; <code>403</code>.</div></div>
+  </div>
+</section>
+
+    <!-- 14 -->
+<section class="slide" data-kicker="KQL">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">14 / 20</span> &nbsp;&middot;&nbsp; The query</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">The hunting query <span class="soft">(KQL)</span></h2>
+  <div class="rule"></div>
+  <div class="term" data-stagger style="--i:2">
+    <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">SignIns-Last24h.kql</span></div>
+    <div class="body" style="font-size:1.95cqh;min-height:0;color:var(--tx2)">
+      <div class="ln"><span style="color:var(--tx3);">// Every user who signed in during the last 24 hours — one row per account</span></div>
+      <div class="ln"><span style="color:var(--az-bright);font-weight:600;">EntraIdSignInEvents</span>                              <span style="color:var(--tx3);">// Defender XDR advanced hunting table (Entra ID P2)</span></div>
+      <div class="ln">| <span style="color:var(--tx);font-weight:600;">where</span> Timestamp &gt; <span style="color:#9cdcfe;">ago</span>(24h)                     <span style="color:var(--tx3);">// time filter — API Timespan also applies; shorter wins</span></div>
+      <div class="ln">| <span style="color:var(--tx);font-weight:600;">where</span> ErrorCode == 0                           <span style="color:var(--tx3);">// 0 = successful sign-in; anything else = failure code</span></div>
+      <div class="ln">| <span style="color:var(--tx);font-weight:600;">summarize</span> LastSignIn  = <span style="color:#9cdcfe;">max</span>(Timestamp),</div>
+      <div class="ln">            SignInCount = <span style="color:#9cdcfe;">count</span>(),</div>
+      <div class="ln">            Apps        = <span style="color:#9cdcfe;">make_set</span>(Application, 5)   <span style="color:var(--tx3);">// becomes a JSON array inside each result row</span></div>
+      <div class="ln">          <span style="color:var(--tx);font-weight:600;">by</span> AccountUpn, AccountDisplayName          <span style="color:var(--tx3);">// one row per user</span></div>
+      <div class="ln">| <span style="color:var(--tx);font-weight:600;">order by</span> LastSignIn <span style="color:var(--tx);font-weight:600;">desc</span></div>
+    </div>
+  </div>
+  <div class="term-cap" data-stagger style="--i:3">Runs unchanged in the Defender portal &rarr; <b>Advanced hunting</b>. Same text, same result &mdash; the API just lets a script ask the question. On <code>October 19, 2026</code> the old <code>AADSignInEventsBeta</code> table is retired in favour of <code>EntraIdSignInEvents</code>.</div>
+</section>
+
+    <!-- 15 -->
+<section class="slide" data-kicker="Step 1">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">15 / 20</span> &nbsp;&middot;&nbsp; Step 1 of 3</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Get a <span class="grad">token</span> &mdash; PowerShell 7</h2>
+  <div class="rule"></div>
+  <div class="term" data-stagger style="--i:2">
+    <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">pwsh — Step 1 · Invoke-RestMethod → token endpoint</span></div>
+    <div class="body" style="font-size:1.62cqh;min-height:0;color:var(--tx2)">
+      <div class="ln"><span style="color:var(--tx3);"># OAuth 2.0 client-credentials flow — two REST calls to Entra ID before we touch Graph (no user involved)</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$tenantId</span> = <span style="color:#f2c46d;">&#x27;&lt;tenant-id&gt;&#x27;</span>; <span style="color:#9cdcfe;">$clientId</span> = <span style="color:#f2c46d;">&#x27;&lt;app-client-id&gt;&#x27;</span>     <span style="color:var(--tx3);"># New-HuntingAppRegistration.ps1 → HuntingDemo.settings.json</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$oidc</span> = <span style="color:var(--az-bright);font-weight:600;">Invoke-RestMethod</span> <span style="color:var(--tx);font-weight:600;">-Uri</span> <span style="color:#f2c46d;">&quot;https://login.microsoftonline.com/$tenantId/v2.0/.well-known/openid-configuration&quot;</span></div>
+      <div class="ln"><span style="color:var(--tx3);">#  ↑ GET (default verb), no token. JSON back: token_endpoint · msgraph_host = graph.microsoft.com | graph.microsoft.us</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$secret</span> = <span style="color:var(--az-bright);font-weight:600;">Read-Host</span> <span style="color:#f2c46d;">&#x27;Client secret&#x27;</span> <span style="color:var(--tx);font-weight:600;">-AsSecureString</span>            <span style="color:var(--tx3);"># prompt for it — never hard-code secrets in a script</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$form</span> = @{                                                     <span style="color:var(--tx3);"># hashtable → form-urlencoded body (the POST default)</span></div>
+      <div class="ln">    client_id     = <span style="color:#9cdcfe;">$clientId</span></div>
+      <div class="ln">    client_secret = <span style="color:var(--az-bright);font-weight:600;">ConvertFrom-SecureString</span> <span style="color:#9cdcfe;">$secret</span> <span style="color:var(--tx);font-weight:600;">-AsPlainText</span>       <span style="color:var(--tx3);"># PS 7: decrypt only at the moment of use</span></div>
+      <div class="ln">    scope         = <span style="color:#f2c46d;">&quot;https://$($oidc.msgraph_host)/.default&quot;</span>        <span style="color:var(--tx3);"># &#x27;.default&#x27; = all app roles granted by admin consent</span></div>
+      <div class="ln">    grant_type    = <span style="color:#f2c46d;">&#x27;client_credentials&#x27;</span>                                <span style="color:var(--tx3);"># the app *is* the identity</span></div>
+      <div class="ln">}</div>
+      <div class="ln"><span style="color:#9cdcfe;">$tok</span>   = <span style="color:var(--az-bright);font-weight:600;">Invoke-RestMethod</span> <span style="color:var(--tx);font-weight:600;">-Method</span> Post <span style="color:var(--tx);font-weight:600;">-Uri</span> <span style="color:#9cdcfe;">$oidc</span>.token_endpoint <span style="color:var(--tx);font-weight:600;">-Body</span> <span style="color:#9cdcfe;">$form</span>   <span style="color:var(--tx3);"># → access_token · token_type · expires_in</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$token</span> = <span style="color:var(--az-bright);font-weight:600;">ConvertTo-SecureString</span> <span style="color:#9cdcfe;">$tok</span>.access_token <span style="color:var(--tx);font-weight:600;">-AsPlainText</span> <span style="color:var(--tx);font-weight:600;">-Force</span>           <span style="color:var(--tx3);"># -Token expects a SecureString</span></div>
+    </div>
+  </div>
+  <div class="term-cap" data-stagger style="--i:3">Discovery makes the cloud automatic: the same code lands on <code>login.microsoftonline.us</code> / <code>graph.microsoft.us</code> for an Azure Government tenant. Delegated alternative: <code>Connect-MgGraph -Scopes 'ThreatHunting.Read.All'</code> &rarr; <code>Invoke-MgGraphRequest</code>.</div>
+</section>
+
+    <!-- 16 -->
+<section class="slide" data-kicker="Step 2">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">16 / 20</span> &nbsp;&middot;&nbsp; Step 2 of 3</div>
+  <h2 class="title title-sm" data-stagger style="--i:1"><span class="grad">Invoke-RestMethod</span>, switch by switch</h2>
+  <div class="rule"></div>
+  <div class="term" data-stagger style="--i:2">
+    <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">pwsh — Step 2 · POST /security/runHuntingQuery</span></div>
+    <div class="body" style="font-size:1.62cqh;min-height:0;color:var(--tx2)">
+      <div class="ln"><span style="color:#9cdcfe;">$kql</span>  = <span style="color:var(--az-bright);font-weight:600;">Get-Content</span> <span style="color:var(--tx);font-weight:600;">-Path</span> .\SignIns-Last24h.kql <span style="color:var(--tx);font-weight:600;">-Raw</span>     <span style="color:var(--tx3);"># the query from slide 14, as one string</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$call</span> = @{</div>
+      <div class="ln">    Method                  = <span style="color:#f2c46d;">&#x27;Post&#x27;</span>                      <span style="color:var(--tx3);"># HTTP verb — runHuntingQuery is an ACTION, so POST</span></div>
+      <div class="ln">    Uri                     = <span style="color:#f2c46d;">&quot;https://$($oidc.msgraph_host)/v1.0/security/runHuntingQuery&quot;</span>   <span style="color:var(--tx3);"># host from discovery</span></div>
+      <div class="ln">    Authentication          = <span style="color:#f2c46d;">&#x27;Bearer&#x27;</span>                    <span style="color:var(--tx3);"># PS 6+: emits  Authorization: Bearer &lt;token&gt;  for you</span></div>
+      <div class="ln">    Token                   = <span style="color:#9cdcfe;">$token</span>                      <span style="color:var(--tx3);"># SecureString from Step 1 (https required)</span></div>
+      <div class="ln">    ContentType             = <span style="color:#f2c46d;">&#x27;application/json&#x27;</span>          <span style="color:var(--tx3);"># tells Graph how to parse the body (POST default is form)</span></div>
+      <div class="ln">    Body                    = @{ Query = <span style="color:#9cdcfe;">$kql</span>; Timespan = <span style="color:#f2c46d;">&#x27;P1D&#x27;</span> } | <span style="color:var(--az-bright);font-weight:600;">ConvertTo-Json</span>   <span style="color:var(--tx3);"># hashtable → JSON text</span></div>
+      <div class="ln">    StatusCodeVariable      = <span style="color:#f2c46d;">&#x27;status&#x27;</span>                    <span style="color:var(--tx3);"># PS 7: capture 200 / 401 / 403 / 429 into $status</span></div>
+      <div class="ln">    ResponseHeadersVariable = <span style="color:#f2c46d;">&#x27;hdrs&#x27;</span>                      <span style="color:var(--tx3);"># PS 6+: request-id, Retry-After, Content-Type → $hdrs</span></div>
+      <div class="ln">    MaximumRetryCount       = 2; RetryIntervalSec = 5     <span style="color:var(--tx3);"># retry transient failures — a 429 honors Retry-After</span></div>
+      <div class="ln">}</div>
+      <div class="ln"><span style="color:#9cdcfe;">$response</span> = <span style="color:var(--az-bright);font-weight:600;">Invoke-RestMethod</span> @call                       <span style="color:var(--tx3);"># splatting: one hashtable carries every switch</span></div>
+    </div>
+  </div>
+  <div class="term-cap" data-stagger style="--i:3">The JSON response is deserialized automatically &mdash; <code>$response.schema</code> and <code>$response.results</code> are ready; no <code>ConvertFrom-Json</code> needed.</div>
+</section>
+
+    <!-- 17 -->
+<section class="slide" data-kicker="Step 3">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">17 / 20</span> &nbsp;&middot;&nbsp; Step 3 of 3</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Read the response, <span class="grad">write the JSON file</span></h2>
+  <div class="rule"></div>
+  <div class="term" data-stagger style="--i:2">
+    <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">pwsh — Step 3 · huntingQueryResults → SignIns-Last24h.json</span></div>
+    <div class="body" style="font-size:1.62cqh;min-height:0;color:var(--tx2)">
+      <div class="ln"><span style="color:#f2c46d;">&quot;HTTP $status · $($response.results.Count) rows · request-id $($hdrs[&#x27;request-id&#x27;])&quot;</span>   <span style="color:var(--tx3);"># status + headers we captured</span></div>
+      <div class="ln">&nbsp;</div>
+      <div class="ln"><span style="color:#9cdcfe;">$response</span>.schema  | <span style="color:var(--az-bright);font-weight:600;">Format-Table</span> name, type                   <span style="color:var(--tx3);"># schema  = ARRAY OF OBJECTS (column name + type)</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$response</span>.results | <span style="color:var(--az-bright);font-weight:600;">Select-Object</span> <span style="color:var(--tx);font-weight:600;">-First</span> 5 |                  <span style="color:var(--tx3);"># results = ARRAY OF OBJECTS (one per user)</span></div>
+      <div class="ln">    <span style="color:var(--az-bright);font-weight:600;">Format-Table</span> AccountUpn, LastSignIn, SignInCount, Apps    <span style="color:var(--tx3);"># Apps    = ARRAY inside each object</span></div>
+      <div class="ln">&nbsp;</div>
+      <div class="ln"><span style="color:#9cdcfe;">$path</span> = <span style="color:#f2c46d;">&quot;.\SignIns-Last24h-$(Get-Date -Format &#x27;yyyyMMdd-HHmm&#x27;).json&quot;</span></div>
+      <div class="ln"><span style="color:#9cdcfe;">$response</span> | <span style="color:var(--az-bright);font-weight:600;">ConvertTo-Json</span> <span style="color:var(--tx);font-weight:600;">-Depth</span> 10 |                        <span style="color:var(--tx3);"># -Depth: default is 2 — nested arrays would be cut off</span></div>
+      <div class="ln">    <span style="color:var(--az-bright);font-weight:600;">Set-Content</span> <span style="color:var(--tx);font-weight:600;">-Path</span> <span style="color:#9cdcfe;">$path</span> <span style="color:var(--tx);font-weight:600;">-Encoding</span> utf8                    <span style="color:var(--tx3);"># PS 7: utf8 = UTF-8 without BOM</span></div>
+      <div class="ln">&nbsp;</div>
+      <div class="ln">(<span style="color:var(--az-bright);font-weight:600;">Get-Content</span> <span style="color:#9cdcfe;">$path</span> <span style="color:var(--tx);font-weight:600;">-Raw</span> | <span style="color:var(--az-bright);font-weight:600;">ConvertFrom-Json</span>).results[0].AccountUpn   <span style="color:var(--tx3);"># round-trip: text → objects → dot notation</span></div>
+    </div>
+  </div>
+  <div class="term-cap" data-stagger style="--i:3">The saved file is exactly slide 8: one <b>object</b> &rarr; <code>@odata.context</code> (string) + <code>schema</code> (array of objects) + <code>results</code> (array of objects, each with a nested <code>Apps</code> array).</div>
+</section>
+
+    <!-- 18 -->
+<section class="slide" data-kicker="Reference">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">18 / 20</span> &nbsp;&middot;&nbsp; Reference</div>
+  <h2 class="title title-sm" data-stagger style="--i:1"><span class="grad">Invoke-RestMethod</span> switches that matter</h2>
+  <div class="rule"></div>
+  <table class="tbl">
+    <thead><tr><th class="opt">Switch</th><th>What it does &middot; why you care</th></tr></thead>
+    <tbody>
+      <tr data-stagger style="--i:2"><td class="opt"><b>-Method</b></td>
+        <td class="cons"><ul><li>The HTTP verb (Get, Post, Patch, Put, Delete). Actions such as <code>runHuntingQuery</code> are POST even though they only read.</li></ul></td></tr>
+      <tr data-stagger style="--i:3"><td class="opt"><b>-Uri</b></td>
+        <td class="cons"><ul><li>Scheme + host + version + path. Take the host from the tenant's OpenID metadata (<code>msgraph_host</code>): <code>graph.microsoft.com</code>, <code>graph.microsoft.us</code>, <code>dod-graph.microsoft.us</code>.</li></ul></td></tr>
+      <tr data-stagger style="--i:4"><td class="opt"><b>-Authentication Bearer -Token</b></td>
+        <td class="cons"><ul><li>PS 6+. Builds <code>Authorization: Bearer &lt;jwt&gt;</code> from a SecureString; https only. Manual form: <code>-Headers @{ Authorization = "Bearer $t" }</code>.</li></ul></td></tr>
+      <tr data-stagger style="--i:5"><td class="opt"><b>-ContentType &middot; -Body</b></td>
+        <td class="cons"><ul><li>Hashtable body &rarr; form pairs (token call); string body is sent verbatim, so <code>ConvertTo-Json</code> first and set <code>application/json</code> (Graph).</li></ul></td></tr>
+      <tr data-stagger style="--i:6"><td class="opt"><b>-StatusCodeVariable &middot; -ResponseHeadersVariable</b></td>
+        <td class="cons"><ul><li>PS 7 / PS 6+. Capture the status code and the header dictionary (<code>request-id</code>, <code>Retry-After</code>) into named variables.</li></ul></td></tr>
+      <tr data-stagger style="--i:7"><td class="opt"><b>-MaximumRetryCount &middot; -RetryIntervalSec &middot; -SkipHttpErrorCheck</b></td>
+        <td class="cons"><ul><li>Retry on 400&ndash;599; a 429 honors <code>Retry-After</code>. <code>-SkipHttpErrorCheck</code> (PS 7) returns the JSON error body instead of throwing.</li></ul></td></tr>
+    </tbody>
+  </table>
+</section>
+
+    <!-- 19 -->
+<section class="slide" data-kicker="Try it">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">19 / 20</span> &nbsp;&middot;&nbsp; Try it yourself</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Prerequisites &amp; <span class="grad">Microsoft Learn</span></h2>
+  <div class="rule"></div>
+  <div class="split">
+    <div class="pane" data-stagger style="--i:2">
+      <div class="eyebrow">Before you run it</div>
+      <div class="it"><b>Licensing</b> &mdash; Defender XDR; <code>EntraIdSignInEvents</code> needs Entra ID P2 (fallback: <code>IdentityLogonEvents</code>).</div>
+      <div class="it"><b>App registration</b> &mdash; <code>New-HuntingAppRegistration.ps1</code>: app + <code>ThreatHunting.Read.All</code> (Application) + admin consent + 12-month secret, all via Graph.</div>
+      <div class="it"><b>PowerShell 7</b> &mdash; <code>pwsh</code>, check <code>$PSVersionTable.PSVersion</code>. Windows PowerShell 5.1 lacks <code>-Authentication</code>, <code>-StatusCodeVariable</code>.</div>
+      <div class="it"><b>Cloud</b> &mdash; endpoints are discovered from the tenant (Public &rarr; <code>graph.microsoft.com</code>, Azure Gov &rarr; <code>graph.microsoft.us</code> / <code>dod-graph.microsoft.us</code>); <code>-Environment Public|AzureGov</code> overrides.</div>
+    </div>
+    <div class="pane" data-stagger style="--i:3">
+      <div class="eyebrow">Microsoft Learn</div>
+      <div class="it"><b>security: runHuntingQuery</b><br><code style="font-size:.78em">learn.microsoft.com/graph/api/security-security-runhuntingquery</code></div>
+      <div class="it"><b>EntraIdSignInEvents table</b><br><code style="font-size:.78em">learn.microsoft.com/defender-xdr/advanced-hunting-entraidsigninevents-table</code></div>
+      <div class="it"><b>Permissions &amp; consent</b> &middot; <b>Grant admin consent</b><br><code style="font-size:.78em">learn.microsoft.com/entra/identity-platform/permissions-consent-overview</code><br><code style="font-size:.78em">learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent</code></div>
+      <div class="it"><b>Invoke-RestMethod (PowerShell 7)</b><br><code style="font-size:.78em">learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod</code></div>
+    </div>
+  </div>
+</section>
+
+    <!-- 20 -->
+<section class="slide s-terminal" data-kicker="Live demo">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">20 / 20</span> &nbsp;&middot;&nbsp; Live demo &amp; Q&amp;A</div>
+  <h2 class="title title-sm" data-stagger style="--i:1"><span class="grad">Live demo</span></h2>
+  <div class="rule"></div>
+  <div class="term" data-stagger style="--i:2">
+    <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">pwsh &mdash; Invoke-HuntingQuery.ps1</span></div>
+    <div class="body">
+      <div class="ln"><span class="prompt">PS<span class="path"> C:\Demo </span>&gt;</span> <span class="cmd" id="termcmd"></span><span class="cursor" id="termcur"></span></div>
+      <div class="ln out" id="termout"></div>
+    </div>
+  </div>
+  <div class="term-cap" data-stagger style="--i:3">Switching to a real PowerShell 7 session: same cmdlet, same switches, real data &mdash; then <b>questions</b>.</div>
+</section>
+
+  </div><!-- /deck -->
+
+  <!-- bottom chrome -->
+  <div class="chrome-bot">
+    <div class="brandfoot"><b>REST APIs &amp; JSON</b> &middot; Graph Security API</div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+    <div class="counter"><b id="cur">01</b> / <span id="total">14</span></div>
+    <div class="controls">
+      <button class="nav-btn" id="prev" aria-label="Previous slide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="nav-btn" id="next" aria-label="Next slide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </div>
+
+  <!-- hint -->
+  <div class="hint" id="hint"><span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> navigate</span><span><kbd>N</kbd> notes</span><span><kbd>F</kbd> fullscreen</span></div>
+
+  <!-- presenter notes -->
+  <aside class="notes" id="notes" aria-live="polite">
+    <h4>Presenter Notes <span class="k" id="notesidx">01 / 13</span></h4>
+    <p id="notesbody"></p>
+  </aside>
+
+</div>
+<script>
+(function(){
+  "use strict";
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const N = slides.length;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- dynamic slide numbering (kicker "NN / total" + counter total) ----
+  const totalEl = document.getElementById('total');
+  if(totalEl) totalEl.textContent = N;
+  slides.forEach((s,i)=>{
+    const nEl = s.querySelector('.kicker .n');
+    if(nEl && /^\s*\d+\s*\/\s*\d+\s*$/.test(nEl.textContent)){
+      nEl.textContent = String(i+1).padStart(2,'0') + ' / ' + N;
+    }
+  });
+
+  // ---- speaker notes (extracted from the deck; trailing slide numbers stripped) ----
+  const NOTES = {
+    1: "Welcome. Frame the hour: we start with why REST APIs matter, learn to read one call and one JSON document, then apply it to the Microsoft Graph Security API with PowerShell 7 and finish with a live hunting query. Ask who has called an API from a script before \u2014 calibrate depth.",
+    2: "Six blocks. Blocks 1-3 are concepts (about 20 minutes), blocks 4-5 are the Graph Security API specifics with code (about 20 minutes), block 6 is the live demo and questions.",
+    3: "Key message: REST is not a developer topic, it is the wiring of everything a CSA touches. Every portal blade is a REST client. In GenAI, a prompt is a POST with JSON. MCP servers speak JSON-RPC 2.0 and their tools are typically wrappers over REST APIs \u2014 so an agent calling a tool is, one layer down, a REST call. Security operations (alerts, incidents, hunting) are exposed the same way.",
+    4: "REST = REpresentational State Transfer (Roy Fielding, 2000). API = Application Programming Interface. JSON = JavaScript Object Notation. The word 'representation' is the bridge to JSON: the server does not send you the resource, it sends you a representation of it. Stateless means the token travels with every request.",
+    5: "Walk left to right: verb, URI, headers, body \u2014 then status code, headers, body. Stress 401 vs 403: 401 = no or invalid token; 403 = valid token, missing permission (that is what you see before admin consent is granted). 429 = throttled \u2014 read Retry-After. The request-id header is what Microsoft support asks for.",
+    6: "GET is safe and idempotent. POST is the odd one out: it creates OR runs an action. runHuntingQuery only reads data but it is modelled as an action, so it is a POST with a body. PATCH is partial; PUT replaces; DELETE is idempotent. Examples are real Graph v1.0 endpoints.",
+    7: "JSON is the representation format. To: request bodies. Through: every hop in a Logic App, playbook, MCP tool call. From: every response, including error bodies. In PowerShell 7 Invoke-RestMethod deserializes for you; the trap is ConvertTo-Json -Depth defaulting to 2 \u2014 nested arrays get flattened to strings.",
+    8: "Read the diagram top to bottom. Object = curly braces; key/value pairs separated by commas; keys are quoted strings. Six data types: string, number, boolean, null, object, array. signIns is an ARRAY OF OBJECTS \u2014 that is how every API returns a collection (think table rows). location is an OBJECT WITHIN AN OBJECT \u2014 dot notation reaches inside: $obj.location.city. No comments, no trailing commas, whitespace irrelevant, keys case-sensitive.",
+    9: "Map each JSON type to what PowerShell gives you back from ConvertFrom-Json / Invoke-RestMethod. Booleans are lowercase and unquoted. null is a value, not absence. Arrays are zero-based. Use -AsHashtable when keys collide only by case or when you need a mutable dictionary.",
+    10: "Transition: the concepts are now applied to one concrete API \u2014 Microsoft Graph Security API, advanced hunting.",
+    11: "The Graph Security API is a broker: one endpoint, federated to providers; Defender XDR answers advanced hunting. POST /security/runHuntingQuery with Query (KQL) and optional Timespan (ISO 8601 \u2014 P1D, P30D, or start/end; default 30 days; the shorter of Timespan vs the query's own time filter wins) and workspaceId. Response = schema[] + results[]. Available in Global, US Gov L4 and L5 (DoD) \u2014 relevant for Federal; not in China. Quotas quoted from the Defender XDR advanced hunting API documentation: 30-day lookback, up to 100,000 rows, at least 45 calls per minute per tenant (varies by tenant size), 3-minute timeout, 429 when CPU quota is reached. The legacy api.security.microsoft.com hunting API is retiring (began January 2026) \u2014 Graph is the path forward.",
+    12: "ThreatHunting.Read.All \u2014 display name 'Run hunting queries'. Delegated = on behalf of the signed-in user (scope, scp claim); Application = without a user (app role, roles claim). Admin consent required for both. Purpose of admin consent: high-privilege permissions expose tenant-wide data, so a privileged human must review before any token is issued; ordinary users see 'Need admin approval'. Who can grant: Privileged Role Administrator for anything; Cloud Application Administrator / Application Administrator for anything except Microsoft Graph application permissions. How: App registrations > API permissions > Grant admin consent; the adminconsent URL; or the 'Consent on behalf of your organization' checkbox. Result objects: OAuth2PermissionGrant (delegated) or appRoleAssignment (application). Caution from the docs: granting tenant-wide consent can revoke previously granted tenant-wide permissions for that app.",
+    13: "Five hops. 1) Registration + consent binds the permission to the client ID \u2014 New-HuntingAppRegistration.ps1 does it programmatically: POST /applications, POST /applications/{id}/addPassword (12-month secret), POST /servicePrincipals, and admin consent as POST /servicePrincipals/{graph}/appRoleAssignedTo. 2) The token request is a REST POST to the tenant's token_endpoint (taken from the OpenID discovery document, so Public and Azure Government tenants use the same code) with form-encoded fields; scope is https://{msgraph_host}/.default for client credentials. 3) The JSON answer contains access_token (a JWT ~1 hour), token_type Bearer, expires_in. Show jwt.ms: aud, roles or scp, exp. 4) Bearer header + JSON body to Graph. 5) Graph validates and answers 200, or 401 (no token) / 403 (missing claim). For US Gov the login host is login.microsoftonline.us and the Graph host is graph.microsoft.us or dod-graph.microsoft.us.",
+    14: "Table EntraIdSignInEvents holds Entra interactive and non-interactive sign-ins; requires Entra ID P2. ErrorCode 0 = success. summarize collapses to one row per user; make_set(Application, 5) returns a dynamic value that arrives as a JSON array inside each row \u2014 a deliberate tie back to the JSON anatomy. AADSignInEventsBeta is deprecated on 19 October 2026 and queries migrate automatically to EntraIdSignInEvents. Fallback if the tenant has no P2: IdentityLogonEvents (Defender for Identity / Defender for Cloud Apps) \u2014 filter on successful logon ActionType values (check the in-portal schema reference) and summarize by AccountUpn.",
+    15: "Client-credentials flow by hand so the class sees there is no magic. Call zero is a plain GET to the OpenID discovery document \u2014 no token, JSON back \u2014 and it tells us token_endpoint and msgraph_host, so the cloud (Public vs Azure Government) is discovered, not hard-coded; the demo script also accepts -Environment Public|AzureGov as an override and, in Delegated mode, re-reads the Graph host from Get-MgContext / Get-MgEnvironment. The secret is prompted with Read-Host -AsSecureString; ConvertFrom-SecureString -AsPlainText (PowerShell 7) decrypts it only for the form body. -Body with a hashtable is form-encoded (application/x-www-form-urlencoded) \u2014 exactly what the token endpoint wants. Invoke-RestMethod deserializes the JSON answer, so $tok.access_token is ready; wrap it as a SecureString because -Token requires one. Production: prefer a certificate or managed identity over a client secret. Interactive alternative for the delegated scope: Connect-MgGraph -Scopes 'ThreatHunting.Read.All' then Invoke-MgGraphRequest -Method POST -Uri ... -Body ... \u2014 same REST call, token handled by MSAL.",
+    16: "Splatting: the hashtable IS the list of switches, and it lets us comment every one. -Method Post because runHuntingQuery is an action. -Authentication Bearer -Token $token builds the Authorization header (PowerShell 6+, https only). -ContentType application/json because POST otherwise defaults to form encoding. -Body must be JSON text \u2014 ConvertTo-Json turns the hashtable into { \"Query\": \"...\", \"Timespan\": \"P1D\" }. -StatusCodeVariable (PowerShell 7) and -ResponseHeadersVariable capture status and headers without switching to Invoke-WebRequest. -MaximumRetryCount / -RetryIntervalSec retry on 400-599; a 429 uses the Retry-After header automatically.",
+    17: "Show the schema (array of objects: name/type), the first rows, then serialize the whole response with ConvertTo-Json -Depth 10 \u2014 the default depth of 2 would truncate the nested Apps array. Set-Content -Encoding utf8 in PowerShell 7 writes UTF-8 without a BOM, which downstream tools prefer. Finish with the round-trip: read the file, ConvertFrom-Json, dot notation. Open the file in VS Code and point at the anatomy: object \u2192 schema[] \u2192 results[] \u2192 Apps[].",
+    18: "Cheat sheet \u2014 leave it up during questions. Emphasize which switches are PowerShell 7-only (-StatusCodeVariable, -SkipHttpErrorCheck) or 6+ (-Authentication, -Token, -ResponseHeadersVariable) \u2014 Windows PowerShell 5.1 does not have them. -SkipHttpErrorCheck is how you read the JSON error body from Graph instead of catching an exception.",
+    19: "Prerequisites for anyone repeating the demo: Defender XDR and Entra ID P2 for the sign-in table; the app registration \u2014 run New-HuntingAppRegistration.ps1 as a Privileged Role Administrator: it creates the app, adds ThreatHunting.Read.All (Application), grants admin consent via appRoleAssignment, issues a 12-month secret (shown once) and writes HuntingDemo.settings.json without the secret; PowerShell 7; endpoints are discovered from the tenant's OpenID metadata, with -Environment Public|AzureGov as an override. The Learn links are the sources for everything on the previous slides.",
+    20: "Pivot to the real terminal. Run 1 \u2014 AppOnly: .\\Invoke-HuntingQuery.ps1 (settings file supplies tenant and client ID; it prompts for the secret). Narrate the three REST calls as they print: GET discovery, POST token, POST runHuntingQuery; show $status, request-id, the row count; open the JSON file. Run 2 \u2014 Delegated: .\\Invoke-HuntingQuery.ps1 -AuthMode Delegated \u2014 the browser sign-in and the consent prompt appear; point out 'Need admin approval' vs 'Consent on behalf of your organization', then the same 200 OK. Optional: paste the app-only token into jwt.ms and compare roles (app) with scp (delegated). Then open the floor.",
+  };
+
+  // ---- build progress segments ----
+  const progress = document.getElementById('progress');
+  const segs = [];
+  for(let i=0;i<N;i++){
+    const s = document.createElement('span');
+    s.className='seg'; s.setAttribute('role','button'); s.setAttribute('aria-label','Go to slide '+(i+1));
+    s.addEventListener('click',()=>go(i));
+    progress.appendChild(s); segs.push(s);
+  }
+
+  const curEl = document.getElementById('cur');
+  const notes = document.getElementById('notes');
+  const notesBody = document.getElementById('notesbody');
+  const notesIdx = document.getElementById('notesidx');
+
+  let idx = 0;
+  let notesOpen = false;
+
+  function pad(n){ return String(n+1).padStart(2,'0'); }
+
+  function renderNotes(){
+    notesIdx.textContent = pad(idx)+' / '+N;
+    const txt = NOTES[idx+1];
+    if(txt){ notesBody.textContent = txt; notesBody.className=''; }
+    else { notesBody.textContent = 'No speaker notes for this slide.'; notesBody.className='empty'; }
+  }
+
+  let typeTimer = null;
+  function runTerminal(){
+    const cmdEl = document.getElementById('termcmd');
+    const curEl2 = document.getElementById('termcur');
+    const outEl = document.getElementById('termout');
+    if(!cmdEl) return;
+    const CMD = ".\\Invoke-HuntingQuery.ps1 -AuthMode AppOnly -Hours 24";
+    const OUT = "Defaults loaded from HuntingDemo.settings.json\nGET  https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration  ->  200 OK  (msgraph_host)\nPOST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token  ->  200 OK  (access_token)\nPOST https://graph.microsoft.com/v1.0/security/runHuntingQuery  ->  200 OK\nschema: 5 columns  |  results: <n> users  |  saved -> .\\SignIns-Last24h-<timestamp>.json\n\nNow for real - AppOnly first, then Delegated so you can see the consent prompt.";
+    if(typeTimer){ clearTimeout(typeTimer); typeTimer=null; }
+    cmdEl.textContent=''; outEl.textContent=''; curEl2.style.display='inline-block';
+    if(reduce){ cmdEl.textContent=CMD; outEl.textContent=OUT; return; }
+    let i=0;
+    (function type(){
+      if(i<=CMD.length){ cmdEl.textContent=CMD.slice(0,i); i++; typeTimer=setTimeout(type, 90); }
+      else { typeTimer=setTimeout(()=>{ outEl.textContent=OUT; }, 420); }
+    })();
+  }
+
+  function go(n){
+    n = (n+N)%N;
+    slides[idx].classList.remove('is-active');
+    slides[idx].setAttribute('aria-hidden','true');
+    idx = n;
+    const s = slides[idx];
+    s.classList.add('is-active');
+    s.removeAttribute('aria-hidden');
+    curEl.textContent = pad(idx);
+    segs.forEach((seg,i)=>{ seg.classList.toggle('cur', i===idx); seg.classList.toggle('past', i<idx); });
+    if(location.hash !== '#'+(idx+1)) history.replaceState(null,'','#'+(idx+1));
+    if(notesOpen) renderNotes();
+    if(s.classList.contains('s-terminal')) runTerminal();
+  }
+
+  function next(){ go(idx+1); }
+  function prev(){ go(idx-1); }
+
+  function toggleNotes(force){
+    notesOpen = (typeof force==='boolean') ? force : !notesOpen;
+    notes.classList.toggle('open', notesOpen);
+    if(notesOpen) renderNotes();
+  }
+
+  // ---- input ----
+  document.getElementById('next').addEventListener('click',next);
+  document.getElementById('prev').addEventListener('click',prev);
+
+  window.addEventListener('keydown',(e)=>{
+    switch(e.key){
+      case 'ArrowRight': case 'PageDown': case ' ': case 'Spacebar': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(N-1); break;
+      case 'n': case 'N': toggleNotes(); break;
+      case 'f': case 'F':
+        if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+        else { document.exitFullscreen?.(); }
+        break;
+      case 'Escape': if(notesOpen) toggleNotes(false); break;
+      default:
+        if(/^[1-9]$/.test(e.key)){ const t=parseInt(e.key,10)-1; if(t<N) go(t); }
+    }
+  });
+
+  // touch swipe
+  let tx=0, ty=0;
+  window.addEventListener('touchstart',(e)=>{ tx=e.changedTouches[0].clientX; ty=e.changedTouches[0].clientY; },{passive:true});
+  window.addEventListener('touchend',(e)=>{
+    const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+    if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){ dx<0?next():prev(); }
+  },{passive:true});
+
+  // hint auto-hide
+  const hint = document.getElementById('hint');
+  let hintT = setTimeout(()=>hint.classList.add('hide'), 4200);
+  window.addEventListener('keydown',()=>{ clearTimeout(hintT); hint.classList.add('hide'); },{once:true});
+
+  // ---- init from hash ----
+  const start = Math.min(Math.max(parseInt((location.hash||'').slice(1),10)||1,1),N)-1;
+  slides.forEach((s,i)=>{ if(i!==start){ s.setAttribute('aria-hidden','true'); } });
+  idx = start;
+  // force first-slide activation on next frame so entrance animates
+  requestAnimationFrame(()=>{ go(start); });
+
+  window.addEventListener('hashchange',()=>{
+    const h = Math.min(Math.max(parseInt(location.hash.slice(1),10)||1,1),N)-1;
+    if(h!==idx) go(h);
+  });
+})();
+</script>
+</body>
+</html>

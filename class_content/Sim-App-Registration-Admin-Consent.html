@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulator — App registration, secret and admin consent · Microsoft Graph REST calls</title>
+<!-- ============================================================
+     create-simulator — interactive step-through flow walkthrough.
+
+     Self-contained: no CDN, no web fonts, no fetch. Works over
+     file:// and any static server.
+
+     Design tokens are shared with the create-ms-ppt deck engine so a
+     deck and its simulator read as one artifact when you alt-tab.
+     NEVER edit :root, the CSS, or the engine at the bottom.
+
+     YOU AUTHOR ONLY:
+       - the CONFIG block  (run labels, deck back-link, log clock)
+       - the PANELS array  (1-3 dock panels)
+       - the STEPS array   (the run: one entry per step)
+       - the page title above
+
+     THE SCENE IS GENERATED. scripts/new_sim.py --scene rewrites the
+     two marked regions below (CANVAS and SCENE) from a JSON spec. It
+     sizes the normal-mode canvas so it has the same aspect as the
+     viewBox (zero letterbox) and so the scene's main band clears the
+     dock. Do not hand-edit either region — re-run the compiler.
+     ============================================================ -->
+<style>
+:root{
+  /* surfaces */
+  --bg0:#06060a; --stage0:#0b0b10; --stage1:#100f17;
+  --surface:#15151c; --surface2:#1a1a22;
+  --line:#2a2a35; --line-soft:#1e1e27;
+  /* text */
+  --tx:#f4f4f7; --tx2:#abadba; --tx3:#73747f;
+  /* azure accent */
+  --az-bright:#7fe9ff; --az:#50e6ff; --az-deep:#0a84d6;
+  --accent: linear-gradient(100deg,#7fe9ff 0%, #2fa9ee 55%, #0a84d6 100%);
+  /* microsoft four-color */
+  --ms-red:#f25022; --ms-green:#7fba00; --ms-blue:#00a4ef; --ms-yellow:#ffb900;
+  --violet:#bda4ff;
+  /* type scale (container query units on the 16:9 stage) */
+  --fs-kicker:1.85cqh; --fs-body:2.45cqh; --fs-sub:2cqh; --fs-small:1.6cqh;
+  --serif:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Code","Cascadia Mono","Consolas",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  background: radial-gradient(1200px 800px at 80% -10%, #0d1320 0%, transparent 60%), var(--bg0);
+  color:var(--tx); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  display:grid; place-items:center; overflow:hidden;
+}
+#stage{
+  position:relative;
+  width:min(100vw, 177.78vh); height:min(56.25vw, 100vh);
+  background: radial-gradient(120% 130% at 12% 8%, var(--stage1) 0%, var(--stage0) 55%, #07070b 100%);
+  container-type:size; container-name:stage;
+  overflow:hidden; isolation:isolate;
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.glow{ position:absolute; border-radius:50%; filter:blur(60px); z-index:0; pointer-events:none; }
+.glow.g1{ width:55cqw; height:55cqw; left:-10cqw; top:-18cqh;
+  background:radial-gradient(circle, rgba(10,132,214,.16), transparent 65%); animation:drift1 26s ease-in-out infinite; }
+.glow.g2{ width:48cqw; height:48cqw; right:-12cqw; bottom:-20cqh;
+  background:radial-gradient(circle, rgba(80,230,255,.10), transparent 65%); animation:drift2 32s ease-in-out infinite; }
+@keyframes drift1{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(6cqw,4cqh) } }
+@keyframes drift2{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(-5cqw,-3cqh) } }
+#stage::after{
+  content:""; position:absolute; inset:0; z-index:6; pointer-events:none;
+  opacity:.035; mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ===================== mode toggle (lives in the bottom bar) ===================== */
+.modes{ display:flex; border:1px solid var(--line); border-radius:10cqh; overflow:hidden;
+  background:rgba(255,255,255,.02); flex:none; }
+.modes button{ font-family:var(--sans); font-size:1.35cqh; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--tx2); background:none; border:none; padding:.6cqh 1.2cqw; cursor:pointer;
+  display:flex; align-items:center; gap:.6cqw; transition:all .25s ease; white-space:nowrap; }
+.modes button:hover{ color:var(--tx); }
+.modes button.on{ background:var(--accent); color:#04121c; font-weight:600; }
+.modes button .tri{ font-size:1.1cqh; }
+.deckbtn{ display:flex; align-items:center; gap:.6cqw; font-family:var(--sans); font-size:1.35cqh;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--tx2); text-decoration:none; flex:none;
+  border:1px solid var(--line); border-radius:10cqh; padding:.6cqh 1.2cqw; margin-right:1cqw;
+  background:rgba(255,255,255,.02); transition:all .25s ease; white-space:nowrap; }
+.deckbtn:hover{ color:var(--tx); border-color:var(--az-deep); }
+.deckbtn[hidden]{ display:none; }
+
+/* ===================== diagram canvas ===================== */
+/* CANVAS:BEGIN — generated by scripts/new_sim.py --scene. Do not hand-edit.
+   viewBox aspect 2.718 : normal-mode region has the same aspect (zero letterbox) and
+   is sized so the scene's main band (82.9% of the viewBox) clears the dock. */
+#canvas{ position:absolute; top:1.8cqh; left:2.6cqw; width:94.8cqw; height:62cqh; z-index:2;
+  transition:top .55s cubic-bezier(.22,.61,.36,1), left .55s cubic-bezier(.22,.61,.36,1),
+    width .55s cubic-bezier(.22,.61,.36,1), height .55s cubic-bezier(.22,.61,.36,1); }
+/* intro: the diagram IS the page */
+#stage.intro #canvas{ top:3cqh; left:1.5cqw; width:97cqw; height:82cqh; }
+/* CANVAS:END */
+#stage.intro #dock, #stage.intro .chrome-bot{ opacity:0; pointer-events:none; }
+#startbtn{ position:absolute; left:50%; bottom:4.6cqh; transform:translateX(-50%); z-index:8;
+  font-family:var(--sans); font-size:2.1cqh; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  background:var(--accent); color:#04121c; border:none; border-radius:10cqh; padding:1.9cqh 4.5cqw;
+  cursor:pointer; display:flex; align-items:center; gap:1.2cqw;
+  box-shadow:0 0 34px rgba(80,230,255,.35), 0 14px 40px -14px rgba(0,0,0,.8);
+  opacity:0; pointer-events:none; transition:opacity .4s ease; }
+#stage.intro #startbtn{ opacity:1; pointer-events:auto; }
+#startbtn:hover{ box-shadow:0 0 46px rgba(80,230,255,.55), 0 14px 40px -14px rgba(0,0,0,.8); }
+#startbtn .tri{ font-size:1.7cqh; }
+#flow{ width:100%; height:100%; display:block; }
+/* the extra band is intro-only: once the dock is up, that vertical space
+   belongs to the enlarged diagram (a dock panel takes the subject over) */
+.extra-band{ transition:opacity .4s ease; }
+#stage:not(.intro) .extra-band{ opacity:0 !important; pointer-events:none; }
+
+/* zones */
+.zone rect.zbg{ fill:rgba(255,255,255,.028); stroke:#42424f; stroke-width:1.2; rx:12; }
+.zone .zlabel{ font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:2.6px;
+  fill:var(--tx2); text-transform:uppercase; }
+.zone .zsub{ font-family:var(--sans); font-size:10px; letter-spacing:.6px; fill:#848692; }
+.zone.z-red rect.zbg{ stroke:rgba(242,80,34,.55); fill:rgba(242,80,34,.045); }
+.zone.z-red .zlabel{ fill:#ff8a70; }
+.zone.z-purple rect.zbg{ stroke:rgba(189,164,255,.5); fill:rgba(189,164,255,.04); }
+.zone.z-purple .zlabel{ fill:var(--violet); }
+.zone.z-green rect.zbg{ stroke:rgba(127,186,0,.7); fill:rgba(127,186,0,.035); }
+.zone.z-blue rect.zbg{ stroke:rgba(0,164,239,.6); fill:rgba(0,164,239,.035); }
+.zone.z-az rect.zbg{ stroke:rgba(80,230,255,.5); fill:rgba(80,230,255,.03); }
+#flow.focused .zone{ opacity:.55; transition:opacity .35s ease; }
+#flow.focused .zone.active{ opacity:1; }
+.zone{ transition:opacity .35s ease; }
+
+/* boundary lines */
+.bline{ stroke-dasharray:5 6; stroke-width:1.5; fill:none; }
+.bline.b1{ stroke:rgba(127,186,0,.55); }
+.bline.b2{ stroke:rgba(242,80,34,.55); }
+.bline.b1.hot{ filter:drop-shadow(0 0 6px rgba(127,186,0,.9)); stroke:var(--ms-green); }
+.bchip div{ font-family:var(--sans); font-size:8.5px; font-weight:600; letter-spacing:1.6px;
+  text-transform:uppercase; text-align:center; padding:3px 4px; border-radius:6px; line-height:1.25; }
+.bchip.c1 div{ color:var(--ms-green); background:#0e1409; border:1px solid rgba(127,186,0,.5); }
+.bchip.c2 div{ color:var(--ms-red); background:#170d0b; border:1px solid rgba(242,80,34,.5); }
+
+/* edges */
+.edge{ fill:none; stroke:rgba(80,230,255,.36); stroke-width:1.7; transition:stroke .3s ease; }
+.edge.dashed{ stroke-dasharray:4 5; }
+.edge.soft{ stroke:rgba(189,164,255,.30); stroke-dasharray:3 5; }
+.edge.bad{ stroke:rgba(242,80,34,.45); stroke-dasharray:4 5; }
+.edge.flowing{ stroke:var(--az); stroke-width:2.4; stroke-dasharray:7 9;
+  animation:dashflow .7s linear infinite; filter:drop-shadow(0 0 5px rgba(80,230,255,.55)); }
+.edge.flowing.tone-warn{ stroke:var(--ms-yellow); filter:drop-shadow(0 0 5px rgba(255,185,0,.55)); }
+.edge.flowing.tone-safe{ stroke:var(--ms-green); filter:drop-shadow(0 0 5px rgba(127,186,0,.55)); }
+@keyframes dashflow{ to{ stroke-dashoffset:-16; } }
+
+/* nodes (foreignObject shells) */
+.node{ cursor:pointer; }
+.node .shell{
+  height:100%; display:flex; flex-direction:column; justify-content:center; gap:2px;
+  background:var(--surface); border:1.3px solid #4a4a58; border-radius:9px;
+  padding:6px 9px; transition:border-color .3s ease, box-shadow .3s ease, background .3s ease;
+}
+.node .nname{ font-family:var(--sans); font-size:12.5px; font-weight:600; color:var(--tx);
+  line-height:1.15; letter-spacing:-.1px; }
+.node .nsub{ font-family:var(--sans); font-size:9.5px; font-weight:400; color:#8f919e; line-height:1.25; }
+.node .ntag{ display:inline-block; font-family:var(--mono); font-size:7.5px; letter-spacing:1.6px;
+  color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.22);
+  border-radius:4px; padding:1px 5px; margin-bottom:2px; width:fit-content; }
+.node .mono, .node code{ font-family:var(--mono); }
+
+.node.round .shell{ border-radius:22px; align-items:center; text-align:center; }
+.node.n-blue .shell{ border-color:rgba(0,164,239,.5); background:linear-gradient(180deg, rgba(0,164,239,.06), var(--surface)); }
+.node.n-green .shell{ border-color:rgba(127,186,0,.55); background:linear-gradient(180deg, rgba(127,186,0,.05), var(--surface)); }
+.node.n-green .ntag{ color:var(--ms-green); background:rgba(127,186,0,.08); border-color:rgba(127,186,0,.3); }
+.node.n-red .shell{ border-color:rgba(242,80,34,.6); background:linear-gradient(180deg, rgba(242,80,34,.06), var(--surface)); }
+.node.n-red .nname{ color:#ff8a70; }
+.node.n-purple .shell{ border-color:rgba(189,164,255,.45); background:linear-gradient(180deg, rgba(189,164,255,.05), var(--surface)); }
+.node.n-purple .nname{ color:var(--violet); }
+.node.dashed .shell{ border-style:dashed; }
+
+.node.active .shell{ border-color:var(--az); animation:nodeglow 1.9s ease-in-out infinite; }
+.node.active.n-green .shell{ border-color:var(--ms-green); animation-name:nodeglowG; }
+.node.active.tone-warn .shell{ border-color:var(--ms-yellow); animation-name:nodeglowW; }
+@keyframes nodeglow{ 0%,100%{ box-shadow:0 0 10px -2px rgba(80,230,255,.45);} 50%{ box-shadow:0 0 22px -2px rgba(80,230,255,.75);} }
+@keyframes nodeglowG{ 0%,100%{ box-shadow:0 0 10px -2px rgba(127,186,0,.45);} 50%{ box-shadow:0 0 22px -2px rgba(127,186,0,.75);} }
+@keyframes nodeglowW{ 0%,100%{ box-shadow:0 0 10px -2px rgba(255,185,0,.45);} 50%{ box-shadow:0 0 22px -2px rgba(255,185,0,.75);} }
+.node.flash-red .shell{ border-color:var(--ms-red) !important; box-shadow:0 0 24px -2px rgba(242,80,34,.85) !important; }
+.node.flash-green .shell{ border-color:var(--ms-green) !important; box-shadow:0 0 24px -2px rgba(127,186,0,.85) !important; }
+
+/* step number badges */
+.snum{ cursor:pointer; }
+.snum circle{ fill:#0b0f17; stroke:rgba(80,230,255,.45); stroke-width:1.3; transition:all .3s ease; }
+.snum text{ font-family:var(--mono); font-size:11px; fill:var(--az-bright); text-anchor:middle;
+  dominant-baseline:central; }
+.snum:hover circle{ stroke:var(--az-bright); }
+.snum.cur circle{ stroke:var(--az-bright); stroke-width:2; filter:drop-shadow(0 0 6px rgba(80,230,255,.8)); }
+.snum.past circle{ stroke:rgba(44,111,149,.9); }
+.snum.past text{ fill:#5f97b5; }
+
+/* packet */
+#packet{ pointer-events:none; opacity:0; transition:opacity .25s ease; }
+#packet rect{ fill:#0b0f17; stroke:var(--az); stroke-width:1.4;
+  filter:drop-shadow(0 0 7px rgba(80,230,255,.8)); }
+#packet text{ font-family:var(--mono); font-size:9.5px; font-weight:600; fill:var(--az-bright);
+  text-anchor:middle; dominant-baseline:central; letter-spacing:.6px; }
+#packet.show{ opacity:1; }
+#packet.tone-warn rect{ stroke:var(--ms-yellow); filter:drop-shadow(0 0 7px rgba(255,185,0,.8)); }
+#packet.tone-warn text{ fill:var(--ms-yellow); }
+#packet.tone-safe rect{ stroke:var(--ms-green); filter:drop-shadow(0 0 7px rgba(127,186,0,.8)); }
+#packet.tone-safe text{ fill:var(--ms-green); }
+/* pulse the INNER group only — a CSS transform on #packet itself would
+   override its SVG translate() position and teleport it to the origin */
+#packet.pulse #pkt-inner{ animation:pktpulse .7s ease-in-out; }
+@keyframes pktpulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.45);} }
+
+/* ===================== bottom dock ===================== */
+#dock{ position:absolute; top:57.4cqh; left:2.6cqw; right:2.6cqw; height:37.8cqh; z-index:4;
+  transition:opacity .4s ease; }
+.pane-wrap{ position:absolute; inset:0; opacity:1; transition:opacity .28s ease, transform .28s ease; }
+.pane-wrap.gone{ opacity:0; transform:translateY(1.2cqh); pointer-events:none; }
+
+/* --- dock panels (1-3, laid out from the PANELS config) --- */
+#sim{ height:100%; display:grid; gap:1.1cqw; }
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:1.2cqh;
+  display:flex; flex-direction:column; overflow:hidden; min-width:0;
+  box-shadow:0 24px 60px -28px rgba(0,0,0,.75); }
+.panel .phead{ flex:none; display:flex; align-items:center; gap:1cqw; padding:1.1cqh 1.3cqw;
+  background:var(--surface2); border-bottom:1px solid var(--line); }
+.panel .phead .d{ width:1.15cqh; height:1.15cqh; border-radius:50%; flex:none; }
+.panel .phead .d.r{ background:#ff5f57; } .panel .phead .d.y{ background:#febc2e; } .panel .phead .d.g{ background:#28c840; }
+.panel .phead .pt{ font-family:var(--mono); font-size:1.4cqh; color:var(--tx3); letter-spacing:.08em;
+  line-height:1.35; }
+.panel .phead .pt b{ color:var(--tx2); font-weight:600; }
+.panel .pbody{ flex:1; overflow-y:auto; padding:1.3cqh 1.2cqw; scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+
+/* chat */
+.p-chat .pbody{ display:flex; flex-direction:column; gap:1cqh; }
+.msg{ max-width:94%; font-size:1.9cqh; line-height:1.42; font-weight:300; color:var(--tx2);
+  animation:rowin .3s ease both; }
+.msg.user{ align-self:flex-end; background:rgba(80,230,255,.07); border:1px solid rgba(80,230,255,.25);
+  border-radius:1cqh 1cqh .25cqh 1cqh; padding:1cqh 1.2cqw; color:var(--tx); }
+.msg.agent{ align-self:flex-start; background:var(--surface2); border:1px solid var(--line);
+  border-radius:1cqh 1cqh 1cqh .25cqh; padding:1cqh 1.2cqw; }
+.msg.agent b{ color:var(--tx); font-weight:600; }
+.msg.sys{ align-self:flex-start; font-family:var(--mono); font-size:1.4cqh; color:var(--tx3);
+  padding:.1cqh .4cqw; }
+.msg.sys .ok{ color:var(--ms-green); }
+.msg .cursor{ display:inline-block; width:.9ch; height:1.7cqh; background:var(--az-bright);
+  transform:translateY(.3cqh); animation:blink 1.05s steps(1) infinite; }
+@keyframes blink{ 0%,50%{ opacity:1 } 50.01%,100%{ opacity:0 } }
+@keyframes rowin{ from{ opacity:0; transform:translateY(.8cqh);} to{ opacity:1; transform:none;} }
+
+/* inspector */
+.p-insp .pbody{ font-family:var(--mono); }
+.itone{ display:inline-block; font-size:1.15cqh; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+  border-radius:.5cqh; padding:.25cqh .8cqw; margin-bottom:1cqh; }
+.itone.warn{ color:var(--ms-yellow); background:rgba(255,185,0,.08); border:1px solid rgba(255,185,0,.35); }
+.itone.safe{ color:var(--ms-green); background:rgba(127,186,0,.08); border:1px solid rgba(127,186,0,.35); }
+.itone.info{ color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.3); }
+.itone.note{ color:var(--tx2); background:rgba(255,255,255,.04); border:1px solid var(--line); }
+.ititle{ font-family:var(--sans); font-size:1.95cqh; font-weight:600; color:var(--tx); margin-bottom:1cqh; }
+.irow{ font-size:1.66cqh; line-height:1.58; color:var(--tx2); white-space:pre-wrap; word-break:break-word; }
+.irow.strike{ text-decoration:line-through; text-decoration-color:rgba(242,80,34,.75);
+  text-decoration-thickness:.18cqh; color:var(--tx3); }
+.irow .k{ color:var(--az-bright); }
+.irow .ok{ color:var(--ms-green); }
+.irow .warn{ color:var(--ms-yellow); }
+
+/* mapping rows: what the agent held -> which list -> what it could pick.
+   A grid so the three parts line up in columns; reading down a column is the point. */
+.isec{ font-family:var(--sans); font-size:1.12cqh; text-transform:uppercase; letter-spacing:.15em;
+  color:var(--tx3); font-weight:600; margin:.75cqh 0 .32cqh; }
+.isec:first-child{ margin-top:0; }
+.imap{ display:grid; grid-template-columns:minmax(0,.78fr) minmax(0,.58fr) minmax(0,1.36fr);
+  gap:0 .7cqw; align-items:baseline; font-size:1.5cqh; line-height:1.34; padding:.09cqh 0; }
+.imap .mraw{ color:var(--tx2); word-break:break-word; }
+.imap .marr{ color:var(--tx3); margin-right:.28cqw; }
+.imap .mfield{ color:var(--tx3); word-break:break-word; }
+.imap .mval{ color:var(--az-bright); word-break:break-word; }
+.imap .mval i{ color:var(--tx3); font-style:normal; font-size:.86em; }
+.imap.ihead{ font-family:var(--sans); font-size:1.02cqh; text-transform:uppercase; letter-spacing:.12em;
+  font-weight:600; color:var(--tx3); border-bottom:1px solid var(--line-soft);
+  padding-bottom:.3cqh; margin-bottom:.34cqh; }
+.inote{ font-family:var(--sans); font-size:1.45cqh; color:var(--tx3); font-weight:300; margin-top:1cqh;
+  font-style:italic; }
+.p-insp .pbody.swap{ animation:inspswap .32s ease; }
+@keyframes inspswap{ from{ opacity:0; transform:translateY(.7cqh);} to{ opacity:1; transform:none;} }
+
+/* audit */
+.p-log .phead .pt b{ color:var(--violet); }
+.arow{ display:flex; gap:.9cqw; align-items:flex-start; padding:.85cqh 0; border-bottom:1px solid var(--line-soft);
+  animation:rowin .3s ease both; }
+.arow:last-child{ border-bottom:none; }
+.arow .ts{ font-family:var(--mono); font-size:1.25cqh; color:var(--tx3); flex:none; padding-top:.25cqh; }
+.arow .abadge{ font-family:var(--mono); font-size:1.05cqh; font-weight:600; letter-spacing:.14em; flex:none;
+  border-radius:.45cqh; padding:.2cqh .6cqw; margin-top:.1cqh; }
+.arow .abadge.purple{ color:var(--violet); background:rgba(189,164,255,.09); border:1px solid rgba(189,164,255,.35); }
+.arow .abadge.green{ color:var(--ms-green); background:rgba(127,186,0,.08); border:1px solid rgba(127,186,0,.35); }
+.arow .abadge.az{ color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.3); }
+.arow .atxt{ font-family:var(--mono); font-size:1.45cqh; line-height:1.52; color:var(--tx2); word-break:break-word; }
+.arow .atxt b{ color:var(--tx); font-weight:600; }
+.aempty{ font-size:1.5cqh; color:var(--tx3); font-style:italic; font-weight:300; padding:.6cqh 0; }
+
+/* code — a mono source/payload block, replaced each step */
+.p-code .pbody{ font-family:var(--mono); }
+.p-code .phead .pt b{ color:var(--az-bright); }
+.ctitle{ font-family:var(--sans); font-size:1.6cqh; font-weight:600; color:var(--tx2);
+  letter-spacing:.04em; margin-bottom:.9cqh; }
+.cline{ display:flex; gap:.7cqw; align-items:baseline; font-size:1.5cqh; line-height:1.62;
+  color:var(--tx2); white-space:pre-wrap; word-break:break-word; padding-left:.55cqw;
+  margin-left:-.55cqw; border-left:.22cqh solid transparent; }
+.cline .cn{ flex:none; min-width:2.2ch; text-align:right; color:var(--tx3); font-size:1.25cqh;
+  user-select:none; }
+.cline .ct{ min-width:0; }
+.cline .ct .k{ color:var(--az-bright); }
+.cline .ct .ok{ color:var(--ms-green); }
+.cline .ct .warn{ color:var(--ms-yellow); }
+.cline .ct .bad{ color:var(--ms-red); }
+.cline .ct .cm{ color:var(--tx3); font-style:italic; }
+.cline.hl{ background:rgba(80,230,255,.06); border-left-color:var(--az); color:var(--tx); }
+.cline.add{ background:rgba(127,186,0,.06); border-left-color:var(--ms-green); }
+.cline.del{ background:rgba(242,80,34,.06); border-left-color:var(--ms-red); color:var(--tx3);
+  text-decoration:line-through; text-decoration-color:rgba(242,80,34,.6); }
+.p-code .pbody.swap{ animation:inspswap .32s ease; }
+
+/* metrics — label / value / delta rows, replaced each step */
+.p-metrics .phead .pt b{ color:var(--ms-green); }
+.mrow{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:0 .8cqw; align-items:baseline;
+  padding:.85cqh 0; border-bottom:1px solid var(--line-soft); animation:rowin .3s ease both; }
+.mrow:last-child{ border-bottom:none; }
+.mrow .mlabel{ font-family:var(--sans); font-size:1.5cqh; font-weight:300; color:var(--tx2);
+  word-break:break-word; }
+.mrow .mvalue{ font-family:var(--mono); font-size:1.95cqh; font-weight:600; color:var(--tx);
+  letter-spacing:-.01em; white-space:nowrap; }
+.mrow .mdelta{ font-family:var(--mono); font-size:1.2cqh; font-weight:600; letter-spacing:.1em;
+  border-radius:.45cqh; padding:.18cqh .55cqw; white-space:nowrap; color:var(--tx3);
+  background:rgba(255,255,255,.04); border:1px solid var(--line); }
+.mrow.up .mvalue{ color:var(--ms-green); }
+.mrow.up .mdelta{ color:var(--ms-green); background:rgba(127,186,0,.08); border-color:rgba(127,186,0,.35); }
+.mrow.down .mvalue{ color:var(--ms-red); }
+.mrow.down .mdelta{ color:var(--ms-red); background:rgba(242,80,34,.08); border-color:rgba(242,80,34,.35); }
+.mrow.warn .mvalue{ color:var(--ms-yellow); }
+.mrow.warn .mdelta{ color:var(--ms-yellow); background:rgba(255,185,0,.08); border-color:rgba(255,185,0,.35); }
+.mrow.az .mvalue{ color:var(--az-bright); }
+.mrow.az .mdelta{ color:var(--az-bright); background:rgba(80,230,255,.08); border-color:rgba(80,230,255,.3); }
+.p-metrics .pbody.swap{ animation:inspswap .32s ease; }
+
+/* ===================== bottom chrome ===================== */
+.chrome-bot{ position:absolute; left:2.6cqw; right:2.6cqw; bottom:.9cqh; z-index:5;
+  display:flex; align-items:center; gap:1.6cqw; transition:opacity .4s ease; }
+.progress{ flex:1; display:flex; gap:.55cqw; align-items:center; }
+.seg{ height:.34cqh; flex:1; background:#2a2a34; border-radius:2px; cursor:pointer;
+  transition:background .4s ease, transform .25s ease; }
+.seg:hover{ transform:scaleY(2.4); }
+.seg.past{ background:#2c6f95; }
+.seg.cur{ background:var(--accent); box-shadow:0 0 10px rgba(80,230,255,.5); }
+.counter{ font-family:var(--mono); font-size:var(--fs-small); color:var(--tx2);
+  letter-spacing:.1em; white-space:nowrap; }
+.counter b{ color:var(--az-bright); font-weight:600; }
+.autop{ font-family:var(--sans); font-size:1.4cqh; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--tx3); background:none; border:1px solid var(--line); border-radius:10cqh;
+  padding:.6cqh 1.4cqw; cursor:pointer; transition:all .25s ease; display:none; white-space:nowrap; }
+.autop.vis{ display:block; }
+.autop.on{ color:var(--ms-green); border-color:rgba(127,186,0,.5); }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .glow{ animation:none !important; }
+  .edge.flowing{ animation:none !important; }
+  .node.active .shell{ animation:none !important; box-shadow:0 0 16px -2px rgba(80,230,255,.6); }
+  .msg,.arow,.mrow{ animation:none !important; }
+  .p-insp .pbody.swap, .p-code .pbody.swap, .p-metrics .pbody.swap{ animation:none !important; }
+  .msg .cursor{ animation:none; }
+  #packet.pulse #pkt-inner{ animation:none; }
+}
+</style>
+</head>
+<body>
+<div id="stage" class="intro" role="application" aria-label="Interactive walkthrough">
+
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+
+  <!-- ============ diagram ============ -->
+  <div id="canvas">
+    <!-- SCENE:BEGIN — generated by scripts/new_sim.py --scene. Do not hand-edit. -->
+    <svg id="flow" viewBox="0 -16 1272 468" preserveAspectRatio="xMidYMid meet" aria-label="App registration, secret and admin consent - created through Microsoft Graph REST calls">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(80,230,255,.4)"/>
+        </marker>
+        <marker id="arr-p" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(189,164,255,.45)"/>
+        </marker>
+        <marker id="arr-r" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(242,80,34,.55)"/>
+        </marker>
+      </defs>
+
+      <!-- ===== zones ===== -->
+      <g class="zone" id="z-admin">
+        <rect class="zbg" x="8" y="14" width="239.6" height="358" rx="12"/>
+        <text class="zlabel" x="24" y="40">The admin</text>
+        <text class="zsub" x="24" y="56">PowerShell 7</text>
+      </g>
+      <g class="zone z-green" id="z-api">
+        <rect class="zbg" x="259.6" y="14" width="272.3" height="358" rx="12"/>
+        <text class="zlabel" x="275.6" y="40">Microsoft Graph</text>
+        <text class="zsub" x="275.6" y="56">graph.microsoft.com/v1.0</text>
+      </g>
+      <g class="zone z-blue" id="z-dir">
+        <rect class="zbg" x="544" y="14" width="468.4" height="358" rx="12"/>
+        <text class="zlabel" x="560" y="40">Entra ID directory</text>
+        <text class="zsub" x="560" y="56">the objects the admin center shows you</text>
+      </g>
+      <g class="zone z-az" id="z-token">
+        <rect class="zbg" x="1024.4" y="14" width="239.6" height="358" rx="12"/>
+        <text class="zlabel" x="1040.4" y="40">Entra ID</text>
+        <text class="zsub" x="1040.4" y="56">token endpoint</text>
+      </g>
+      <g class="zone z-purple extra-band" id="z-portal">
+        <rect class="zbg" x="260" y="384" width="1004" height="60" rx="12"/>
+        <text class="zlabel" x="276" y="410">Portal equivalent</text>
+      </g>
+
+      <!-- ===== boundary lines ===== -->
+      <path class="bline b1" id="bnd1" d="M 538 -12 L 538 372"/>
+
+      <!-- ===== edges (authored in travel direction) ===== -->
+      <path class="edge" id="e1" d="M 232 114 C 256 114, 252 124.8, 276 124.8" marker-end="url(#arr)"/>
+      <path class="edge" id="e2" d="M 516 118.6 C 540 118.6, 536 109, 560 109" marker-end="url(#arr)"/>
+      <path class="edge" id="e3" d="M 232 151.5 C 256 151.5, 252 162, 276 162" marker-end="url(#arr)"/>
+      <path class="edge" id="e4" d="M 516 162 C 540 162, 536 205, 560 205" marker-end="url(#arr)"/>
+      <path class="edge" id="e5" d="M 232 189 C 256 189, 252 199.2, 276 199.2" marker-end="url(#arr)"/>
+      <path class="edge" id="e6" d="M 276 217.8 L 232 222" marker-end="url(#arr)"/>
+      <path class="edge bad" id="e-403" d="M 396 224 L 396 282" marker-end="url(#arr-r)"/>
+      <path class="edge" id="e8" d="M 516 205.4 C 552.5 205.4, 523.5 290.8, 560 290.8" marker-end="url(#arr)"/>
+      <path class="edge" id="e9" d="M 980 298 C 996 298, 998 292, 998 280 L 998 128 C 998 116, 994 109, 980 109" marker-end="url(#arr)"/>
+      <path class="edge" id="e10" d="M 128 234 L 128 272" marker-end="url(#arr)"/>
+
+      <!-- ===== step number badges ===== -->
+      <g class="snum" data-step="1" transform="translate(128,72)"><circle r="11"/><text>1</text></g>
+      <g class="snum" data-step="2" transform="translate(254,103.4)"><circle r="11"/><text>2</text></g>
+      <g class="snum" data-step="3" transform="translate(538,97.8)"><circle r="11"/><text>3</text></g>
+      <g class="snum" data-step="4" transform="translate(254,156.8)"><circle r="11"/><text>4</text></g>
+      <g class="snum" data-step="5" transform="translate(538,183.5)"><circle r="11"/><text>5</text></g>
+      <g class="snum" data-step="6" transform="translate(254,200.1)"><circle r="11"/><text>6</text></g>
+      <g class="snum" data-step="7" transform="translate(254,241.9)"><circle r="11"/><text>7</text></g>
+      <g class="snum" data-step="8" transform="translate(336,84)"><circle r="11"/><text>8</text></g>
+      <g class="snum" data-step="9" transform="translate(538,248.1)"><circle r="11"/><text>9</text></g>
+      <g class="snum" data-step="10" transform="translate(456,84)"><circle r="12"/><text>10</text></g>
+      <g class="snum" data-step="11" transform="translate(998,204)"><circle r="12"/><text>11</text></g>
+      <g class="snum" data-step="12" transform="translate(152,253)"><circle r="12"/><text>12</text></g>
+      <g class="snum" data-step="13" transform="translate(1144,84)"><circle r="12"/><text>13</text></g>
+
+      <!-- ===== nodes ===== -->
+      <g class="node round" id="n-admin" data-node tabindex="0" role="button" aria-label="Admin">
+        <foreignObject x="24" y="84" width="208" height="150">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">Admin</span>
+            <span class="nsub">New-HuntingAppRegistration.ps1</span>
+            <span class="nsub"><b>Privileged Role Administrator</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-purple" id="n-settings" data-node tabindex="0" role="button" aria-label="HuntingDemo.settings.json">
+        <foreignObject x="24" y="272" width="208" height="60">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname mono">HuntingDemo.settings.json</span>
+            <span class="nsub">ids + endpoints &middot; <b>no secret</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-green" id="n-api" data-node tabindex="0" role="button" aria-label="graph.microsoft.com/v1.0">
+        <foreignObject x="276" y="100" width="240" height="124">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">MICROSOFT GRAPH</span>
+            <span class="nname mono">graph.microsoft.com/v1.0</span>
+            <span class="nsub">directory APIs</span>
+            <span class="nsub">the admin center is a REST client too</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-red round" id="n-403" data-node tabindex="0" role="button" aria-label="403 · Forbidden">
+        <foreignObject x="286" y="282" width="220" height="46">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">403 &middot; Forbidden</span>
+            <span class="nsub">this role can't consent to Graph app roles</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-blue" id="n-graphsp" data-node tabindex="0" role="button" aria-label="Microsoft Graph">
+        <foreignObject x="560" y="70" width="420" height="78">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">RESOURCE &middot; servicePrincipal</span>
+            <span class="nname">Microsoft Graph</span>
+            <span class="nsub">appRoles[] &rarr; ThreatHunting.Read.All &middot; <b>Run hunting queries</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-blue" id="n-app" data-node tabindex="0" role="button" aria-label="Graph Security API - Hunting Demo">
+        <foreignObject x="560" y="166" width="420" height="78">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">APP REGISTRATION &middot; application</span>
+            <span class="nname mono">Graph Security API - Hunting Demo</span>
+            <span class="nsub">requiredResourceAccess &middot; passwordCredentials</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-blue" id="n-sp" data-node tabindex="0" role="button" aria-label="appId → servicePrincipal">
+        <foreignObject x="560" y="262" width="420" height="72">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">ENTERPRISE APP &middot; servicePrincipal</span>
+            <span class="nname mono">appId &rarr; servicePrincipal</span>
+            <span class="nsub">appRoleAssignments = <b>admin consent</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node" id="n-token" data-node tabindex="0" role="button" aria-label="/oauth2/v2.0/token">
+        <foreignObject x="1040" y="100" width="208" height="124">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">TOKEN ENDPOINT</span>
+            <span class="nname mono">/oauth2/v2.0/token</span>
+            <span class="nsub">next client-credentials token:</span>
+            <span class="nsub">roles: [ <b>ThreatHunting.Read.All</b> ]</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-purple extra-band" id="n-portal" data-node tabindex="0" role="button" aria-label="Entra admin center &amp;rsaquo; App registrations &amp;rsaquo; API permissions &amp;rsaquo; Grant admin consent">
+        <foreignObject x="470" y="391" width="778" height="46">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">Entra admin center &rsaquo; App registrations &rsaquo; API permissions &rsaquo; <b>Grant admin consent</b></span>
+            <span class="nsub">Certificates &amp; secrets &rsaquo; New client secret &middot; every click there is one of these REST calls</span>
+          </div>
+        </foreignObject>
+      </g>
+
+      <!-- ===== packet ===== -->
+      <g id="packet"><g id="pkt-inner"><rect x="-22" y="-11" width="44" height="22" rx="7"/><text id="pkt-label">REQ</text></g></g>
+    </svg>
+    <!-- SCENE:END -->
+  </div>
+
+  <!-- ============ bottom dock ============ -->
+  <div id="dock">
+    <!-- panels are built from the PANELS config in the engine -->
+    <div class="pane-wrap" id="wrap-sim">
+      <div id="sim"></div>
+    </div>
+  </div>
+
+  <!-- ============ intro action ============ -->
+  <button id="startbtn"><span class="tri">&#9654;</span> Start simulation</button>
+
+  <!-- ============ bottom chrome ============ -->
+  <div class="chrome-bot">
+    <a class="deckbtn" id="deckbtn" href="#" title="Back to the slide deck" hidden>&#9666; Slides</a>
+    <div class="modes">
+      <button id="m-sim" class="on"><span class="tri">&#9654;</span> Run it</button>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+    <button class="autop vis" id="autop" aria-pressed="false">Autoplay: off</button>
+    <div class="counter"><b id="cur">&mdash;</b> / <span id="tot">0</span></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   CONFIG — author this.
+   ============================================================ */
+const CONFIG = {
+  runLabel:   'Run the script',
+  startLabel: 'Start simulation',
+  deck:       {href:'REST-APIs-JSON-Graph-Security-API.html#14', label:'Slides'},
+  clock:      { start:'14:02:00', step:4 },
+  autoplayMs: 6500,
+  readyText:  'Ready. Press <b>Run the script</b> to start &mdash; then <b>Space</b> to step through.'
+};
+
+/* ============================================================
+   PANELS — 1 to 3 of them. type picks the renderer; weight is the
+   grid share; field is the STEPS key it reads (defaults to type).
+     chat      append  · typed messages, {who:'user'|'agent'|'sys', t, type}
+     inspector replace · toned payload rows, {tone:note|safe|warn|info, toneLabel, title, rows, note}
+     log       append  · timestamped records, {badge,tone,t}
+     code      replace · mono block, {title,numbers,lines:[{t,hl,add,del,n}]}
+     metrics   replace · label/value/delta rows, {label,value,delta,tone}
+   ============================================================ */
+const PANELS = [
+  {id:'chat', type:'chat', weight:28, title:'pwsh', sub:'the admin\'s console', empty:''},
+  {id:'insp', type:'inspector', weight:40, title:'REQUEST / RESPONSE', sub:'JSON on the wire'},
+  {id:'log', type:'log', weight:32, title:'DIRECTORY', sub:'what now exists in the tenant', empty:'Nothing written yet. Each object appears here as Graph creates it.'}
+];
+
+/* ============================================================
+   THE STEPS ARRAY — single source of truth for the run.
+   Every panel and every bit of diagram state renders from this.
+   Never hard-code step content anywhere else.
+
+   Per step:
+     n         1-based step number (must match the scene badge)
+     node      id of the node this step lands on            (required)
+     edge      id of the edge the packet flies              (null = pulse in place)
+     zones     zone ids to hold lit                         (required, may be [])
+     tone      'az' | 'safe' | 'warn'  — packet/edge/node color
+     pkt       short packet label, 3-4 characters
+     dur       packet flight time in ms
+     hot       optional boundary id to light for this step
+     beat      optional {fail, pass, boundary} flash beat after the flight
+     chatAfter true = play chat messages after the flight, not before
+     <field>   one key per panel: chat / inspector / log / code / metrics
+   ============================================================ */
+const STEPS = [
+  { n:1, node:'n-admin', edge:null, zones:['z-admin'], tone:'az', pkt:'RUN', dur:600,
+    chat:[{who:'user', type:true, t:'.\\New-HuntingAppRegistration.ps1'},
+      {who:'sys', t:'Endpoints : OpenID discovery &rarr; login.microsoftonline.com &middot; graph.microsoft.com'},
+      {who:'sys', t:'Connect-MgGraph -Scopes Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All'}],
+    inspector:{tone:'note', toneLabel:'SIGN-IN · DELEGATED', title:'The admin signs in — the script acts as the admin',
+      rows:[
+      {t:'account : admin@contoso.onmicrosoft.com', k:true},
+      {t:'role &nbsp;&nbsp;&nbsp;: Privileged Role Administrator'},
+      {sec:'delegated scopes the script requests'},
+      {t:'Application.ReadWrite.All &nbsp;&nbsp;&nbsp;&nbsp;&mdash; create the app, add the secret'},
+      {t:'AppRoleAssignment.ReadWrite.All &mdash; grant the app role (= consent)'},
+      {t:'Cloud Application Administrator: everything except consenting to Graph app roles', strike:true}],
+      note:'Every step from here is a REST call to Microsoft Graph. The Entra admin center makes the same calls.'},
+    log:[]
+  },
+
+  { n:2, node:'n-api', edge:'e1', zones:['z-admin', 'z-api'], tone:'az', pkt:'GET', dur:600,
+    inspector:{tone:'info', toneLabel:'REQUEST · GET', title:'Find Microsoft Graph\'s own service principal in this tenant',
+      rows:[
+      {t:'GET /v1.0/servicePrincipals?$filter=appId eq \'00000003-0000-0000-c000-000000000000\'', k:true},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&amp;$select=id,appId,displayName,appRoles,oauth2PermissionScopes'},
+      {t:'Authorization: Bearer &lt;admin token &middot; scp: Application.ReadWrite.All &hellip;&gt;'}],
+      note:'00000003-0000-0000-c000-000000000000 is Microsoft Graph\'s appId — the same in every tenant.'},
+    log:[]
+  },
+
+  { n:3, node:'n-graphsp', edge:'e2', zones:['z-api', 'z-dir'], tone:'az', pkt:'READ', dur:600,
+    inspector:{tone:'note', toneLabel:'RESPONSE · 200 OK', title:'appRoles[] — an array of objects; pick the one we need',
+      rows:[
+      {t:'{ "value": [ { "id": "8fce&hellip;", "displayName": "Microsoft Graph",'},
+      {t:'&nbsp;&nbsp;"appRoles": ['},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;{ "id": "dd98c7f5-&hellip;", "value": "ThreatHunting.Read.All",', k:true},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"displayName": "Run hunting queries", "allowedMemberTypes": [ "Application" ] },', k:true},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&hellip; hundreds more ] } ] }'}],
+      note:'Looked up, not hard-coded: the script filters appRoles where value == ThreatHunting.Read.All.'},
+    log:[{badge:'FOUND', tone:'az', t:'appRole <b>ThreatHunting.Read.All</b> (Application) on the Microsoft Graph service principal'}]
+  },
+
+  { n:4, node:'n-api', edge:'e3', zones:['z-admin', 'z-api'], tone:'az', pkt:'POST', dur:600,
+    inspector:{tone:'info', toneLabel:'REQUEST · POST', title:'Create the app registration — permission requested up front',
+      rows:[
+      {t:'POST /v1.0/applications', k:true},
+      {t:'Content-Type: application/json'},
+      {t:'{ "displayName": "Graph Security API - Hunting Demo",'},
+      {t:'&nbsp;&nbsp;"signInAudience": "AzureADMyOrg",'},
+      {t:'&nbsp;&nbsp;"requiredResourceAccess": [ { "resourceAppId": "00000003-&hellip;",', k:true},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"resourceAccess": [ { "id": "dd98c7f5-&hellip;", "type": "Role" } ] } ] }', k:true}],
+      note:'"type": "Role" = application permission; "Scope" would be delegated. Requesting is not granting.'},
+    log:[]
+  },
+
+  { n:5, node:'n-app', edge:'e4', zones:['z-api', 'z-dir'], tone:'safe', pkt:'201', dur:700,
+    chat:[{who:'sys', t:'created &nbsp;appId (client ID) = 11111111-2222-3333-4444-555555555555'}],
+    inspector:{tone:'safe', toneLabel:'RESPONSE · 201 CREATED', title:'Two IDs — do not mix them up',
+      rows:[
+      {t:'"id" &nbsp;&nbsp;&nbsp;: "8f3a1c0d-&hellip;" &nbsp;&larr; object id (the directory record)', k:true},
+      {t:'"appId" : "11111111-2222-3333-4444-555555555555" &nbsp;&larr; client id (what the demo script sends)', k:true},
+      {t:'"createdDateTime": "2026-09-03T14:02:11Z"'},
+      {t:'"passwordCredentials": [] &nbsp;&middot;&nbsp; "keyCredentials": []'}],
+      note:'Portal: App registrations → Overview shows both. The token request wants appId.'},
+    log:[{badge:'CREATED', tone:'green', t:'application <b>Graph Security API - Hunting Demo</b> &middot; appId 1111&hellip;5555'}]
+  },
+
+  { n:6, node:'n-api', edge:'e5', zones:['z-admin', 'z-api'], tone:'warn', pkt:'POST', dur:600,
+    inspector:{tone:'warn', toneLabel:'REQUEST · POST · CREDENTIAL', title:'Add a client secret — 12 months, not the 2-year default',
+      rows:[
+      {t:'POST /v1.0/applications/8f3a1c0d-&hellip;/addPassword', k:true},
+      {t:'{ "passwordCredential": {'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;"displayName": "Hunting demo secret (2026-09-03)",'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;"endDateTime": "2027-09-03T14:02:11Z" } }', k:true}],
+      note:'Omit endDateTime and Entra ID picks startDateTime + 2 years. Shorter is safer; a certificate is safer still.'},
+    log:[]
+  },
+
+  { n:7, node:'n-admin', edge:'e6', zones:['z-api', 'z-admin'], tone:'warn', pkt:'SECR', dur:800, chatAfter:true,
+    chat:[{who:'sys', t:'<span class="warn">COPY THE SECRET NOW &mdash; it cannot be retrieved later</span>'},
+      {who:'sys', t:'keyId 6b1c9e2a-&hellip; &middot; expires 2027-09-03'}],
+    inspector:{tone:'warn', toneLabel:'RESPONSE · 200 OK · SHOWN ONCE', title:'secretText appears exactly once',
+      rows:[
+      {t:'{ "keyId": "6b1c9e2a-&hellip;",'},
+      {t:'&nbsp;&nbsp;"secretText": "Q~demo.secret.value.shown.once~",', k:true},
+      {t:'&nbsp;&nbsp;"hint": "Q~d",'},
+      {t:'&nbsp;&nbsp;"startDateTime": "2026-09-03T14:02:11Z",'},
+      {t:'&nbsp;&nbsp;"endDateTime": "2027-09-03T14:02:11Z" }', k:true},
+      {t:'GET /applications/{id} later &rarr; passwordCredentials[].secretText is null', strike:true}],
+      note:'Store it outside the scripts ($env:HUNT_CLIENT_SECRET, a vault). The script prints it once and forgets it.'},
+    log:[{badge:'ISSUED', tone:'purple', t:'passwordCredential &middot; expires <b>2027-09-03</b> &middot; value shown once, never written to disk'}]
+  },
+
+  { n:8, node:'n-api', edge:null, zones:['z-admin', 'z-api'], tone:'az', pkt:'POST', dur:500,
+    inspector:{tone:'info', toneLabel:'REQUEST · POST', title:'An app registration alone cannot be granted anything',
+      rows:[
+      {t:'POST /v1.0/servicePrincipals', k:true},
+      {t:'{ "appId": "11111111-2222-3333-4444-555555555555" }'},
+      {sec:'why a second object'},
+      {t:'application &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= the blueprint &mdash; App registrations'},
+      {t:'servicePrincipal = the identity in <b>this</b> tenant &mdash; Enterprise applications', html:true}],
+      note:'Consent, role assignments and sign-in logs all hang off the service principal.'},
+    log:[]
+  },
+
+  { n:9, node:'n-sp', edge:'e8', zones:['z-api', 'z-dir'], tone:'safe', pkt:'201', dur:700,
+    inspector:{tone:'safe', toneLabel:'RESPONSE · 201 CREATED', title:'The enterprise application',
+      rows:[
+      {t:'"id" : "c2e9d7b1-&hellip;" &nbsp;&larr; servicePrincipal object id = principalId for the consent', k:true},
+      {t:'"appId" : "11111111-2222-3333-4444-555555555555" &middot; "servicePrincipalType": "Application"'},
+      {t:'"appRoleAssignments": [] &nbsp;&larr; still empty'}],
+      note:'Portal: Enterprise applications → Permissions is empty at this point.'},
+    log:[{badge:'CREATED', tone:'green', t:'servicePrincipal for appId 1111&hellip;5555 &middot; <b>no permissions yet</b>'}]
+  },
+
+  { n:10, node:'n-api', edge:null, zones:['z-admin', 'z-api'], tone:'safe', pkt:'POST', dur:500, beat:{fail:'n-403', pass:'n-api'},
+    inspector:{tone:'safe', toneLabel:'REQUEST · POST · ADMIN CONSENT', title:'Admin consent is a directory write — three GUIDs',
+      rows:[
+      {t:'POST /v1.0/servicePrincipals/{graphSpId}/appRoleAssignedTo', k:true},
+      {head:true, h1:'property', h2:'means', h3:'value'},
+      {from:'principalId', field:'who gets it', to:'c2e9d7b1-&hellip; (our service principal)'},
+      {from:'resourceId', field:'from whom', to:'Microsoft Graph\'s service principal'},
+      {from:'appRoleId', field:'what', to:'dd98c7f5-&hellip; = ThreatHunting.Read.All'},
+      {t:'signed in as Cloud Application Administrator &rarr; 403: cannot consent to Graph app roles', strike:true}],
+      note:'Same effect as the Grant admin consent button. Requires Privileged Role Administrator.'},
+    log:[]
+  },
+
+  { n:11, node:'n-graphsp', edge:'e9', zones:['z-dir'], tone:'safe', pkt:'ROLE', dur:1100, hot:'bnd1',
+    chat:[{who:'sys', t:'granted &nbsp;assignment id = 4pLm&hellip; (Graph Security API - Hunting Demo &rarr; Microsoft Graph)'}],
+    inspector:{tone:'safe', toneLabel:'RESPONSE · 201 CREATED', title:'The appRoleAssignment — this object IS the consent',
+      rows:[
+      {t:'{ "id": "4pLm&hellip;",'},
+      {t:'&nbsp;&nbsp;"principalDisplayName": "Graph Security API - Hunting Demo", "principalType": "ServicePrincipal",'},
+      {t:'&nbsp;&nbsp;"resourceDisplayName": "Microsoft Graph",'},
+      {t:'&nbsp;&nbsp;"appRoleId": "dd98c7f5-&hellip;" &nbsp;&rarr; ThreatHunting.Read.All,', k:true},
+      {t:'&nbsp;&nbsp;"createdDateTime": "2026-09-03T14:02:40Z" }'}],
+      note:'Portal now reads: API permissions → Status: Granted for Contoso. Delete this object and the consent is gone.'},
+    log:[{badge:'CONSENT', tone:'green', t:'appRoleAssignment &middot; principal = our SP &middot; resource = Microsoft Graph &middot; role = <b>ThreatHunting.Read.All</b>'}]
+  },
+
+  { n:12, node:'n-settings', edge:'e10', zones:['z-admin'], tone:'az', pkt:'JSON', dur:500, chatAfter:true,
+    chat:[{who:'sys', t:'Settings written (no secret) -&gt; HuntingDemo.settings.json'}],
+    inspector:{tone:'note', toneLabel:'FILE · JSON', title:'What the demo script needs — and what it must never contain',
+      rows:[
+      {t:'{ "tenantId": "contoso.onmicrosoft.com",'},
+      {t:'&nbsp;&nbsp;"clientId": "11111111-2222-3333-4444-555555555555",', k:true},
+      {t:'&nbsp;&nbsp;"environment": "Public", "graphHost": "https://graph.microsoft.com",'},
+      {t:'&nbsp;&nbsp;"permission": "ThreatHunting.Read.All",'},
+      {t:'&nbsp;&nbsp;"secretKeyId": "6b1c9e2a-&hellip;", "secretExpiresUtc": "2027-09-03T14:02:11Z" }'},
+      {t:'"clientSecret": &hellip; &nbsp;&larr; never', strike:true}],
+      note:'Invoke-HuntingQuery.ps1 reads tenantId, clientId and environment from here; the secret comes from $env:HUNT_CLIENT_SECRET or a prompt.'},
+    log:[{badge:'SAVED', tone:'purple', t:'HuntingDemo.settings.json &middot; identifiers + endpoints &middot; <b>no secret</b>'}]
+  },
+
+  { n:13, node:'n-token', edge:null, zones:['z-token'], tone:'safe', pkt:'JWT', dur:600, chatAfter:true,
+    chat:[{who:'agent', type:true, t:'Done. Allow 1&ndash;2 minutes for replication, then run <b>.\\Invoke-HuntingQuery.ps1 -AuthMode AppOnly</b>.'}],
+    inspector:{tone:'safe', toneLabel:'CONSEQUENCE', title:'What changes at the token endpoint',
+      rows:[
+      {t:'POST /oauth2/v2.0/token &middot; grant_type = client_credentials &middot; scope = https://graph.microsoft.com/.default'},
+      {t:'before : access_token with &nbsp;roles: [] &nbsp;&rarr; Graph answers 403', strike:true},
+      {t:'after &nbsp;: access_token with &nbsp;roles: [ "ThreatHunting.Read.All" ] &nbsp;&rarr; Graph answers 200', k:true},
+      {sec:'undo'},
+      {t:'DELETE /servicePrincipals/{ourSpId}/appRoleAssignments/{id} &nbsp;&rarr; consent revoked, next token has no roles'}],
+      note:'Consent is a record, not a moment. It lives in the directory until someone deletes it.'},
+    log:[{badge:'READY', tone:'az', t:'next client-credentials token &rarr; <b>roles: [ ThreatHunting.Read.All ]</b>'}]
+  },
+];
+
+/* Optional: extra node -> step mappings, for nodes that are not the
+   landing node of any step but should still be clickable.
+   e.g. { 'n-reject':[1] }  (0-based step indexes) */
+const NODE_STEPS_EXTRA = {'n-403':[9], 'n-portal':[9]};
+
+/* ============================================================
+   ==================  ENGINE  —  DO NOT EDIT  ================
+   ============================================================ */
+const N = STEPS.length;
+
+/* ---- panel plumbing ---- */
+const PANEL_DEFS = {
+  chat:      { cls:'p-chat',    field:'chat',      mode:'append',  dots:true,  live:true  },
+  inspector: { cls:'p-insp',    field:'inspector', mode:'replace', dots:false, live:false },
+  log:       { cls:'p-log',     field:'log',       mode:'append',  dots:false, live:true  },
+  code:      { cls:'p-code',    field:'code',      mode:'replace', dots:false, live:false },
+  metrics:   { cls:'p-metrics', field:'metrics',   mode:'replace', dots:false, live:false }
+};
+
+const sim = $('sim');
+sim.style.gridTemplateColumns = PANELS.map(p => (p.weight||1)+'fr').join(' ');
+PANELS.forEach(p => {
+  const def = PANEL_DEFS[p.type];
+  if(!def){ console.error('unknown panel type: '+p.type); return; }
+  p._def = def;
+  p._field = p.field || def.field;
+  const el = document.createElement('div');
+  el.className = 'panel ' + def.cls;
+  el.id = 'panel-' + p.id;
+  let head = def.dots ? '<span class="d r"></span><span class="d y"></span><span class="d g"></span>' : '';
+  head += '<span class="pt">' + (p.title||'') + (p.sub ? ' &middot; <b>'+p.sub+'</b>' : '') + '</span>';
+  el.innerHTML = '<div class="phead">'+head+'</div>'
+               + '<div class="pbody"'+(def.live?' aria-live="polite"':'')+'></div>';
+  sim.appendChild(el);
+  p._body = el.querySelector('.pbody');
+});
+const livePanels = PANELS.filter(p => p._def);
+
+/* ---- load-time self-check ---- */
+console.assert(N > 0, 'STEPS must not be empty');
+STEPS.forEach((s,i) => {
+  console.assert(s.n === i+1, 'STEPS['+i+'].n should be '+(i+1));
+  console.assert(document.getElementById(s.node), 'missing node '+s.node);
+  if(s.edge) console.assert(document.getElementById(s.edge), 'missing edge '+s.edge);
+  (s.zones||[]).forEach(z => console.assert(document.getElementById(z), 'missing zone '+z));
+});
+
+/* clicking a node opens its first step; step badges do the same */
+const NODE_STEPS = {};
+STEPS.forEach((s,i) => { (NODE_STEPS[s.node] = NODE_STEPS[s.node]||[]).push(i); });
+Object.keys(NODE_STEPS_EXTRA).forEach(k => { NODE_STEPS[k] = NODE_STEPS_EXTRA[k]; });
+
+/* ============================================================
+   shared rendering
+   ============================================================ */
+const flow = $('flow'), packet = $('packet'), pktLabel = $('pkt-label');
+const allNodes = Array.from(flow.querySelectorAll('.node'));
+const allEdges = Array.from(flow.querySelectorAll('.edge'));
+const allZones = Array.from(flow.querySelectorAll('.zone'));
+const allNums  = Array.from(flow.querySelectorAll('.snum'));
+const allBnds  = Array.from(flow.querySelectorAll('.bline'));
+
+function nodeCenter(id){
+  const fo = document.getElementById(id).querySelector('foreignObject');
+  return { x:+fo.getAttribute('x') + fo.getAttribute('width')/2,
+           y:+fo.getAttribute('y') + fo.getAttribute('height')/2 };
+}
+function setPacket(x,y){ packet.setAttribute('transform', 'translate('+x+','+y+')'); }
+function packetTone(s){ packet.classList.remove('tone-warn','tone-safe');
+  if(s.tone==='warn') packet.classList.add('tone-warn');
+  if(s.tone==='safe') packet.classList.add('tone-safe');
+  pktLabel.textContent = s.pkt || ''; }
+
+function setActive(i){ /* i = step index, or -1 for none */
+  allNodes.forEach(n=>n.classList.remove('active','tone-warn'));
+  allEdges.forEach(e=>e.classList.remove('flowing','tone-warn','tone-safe'));
+  allZones.forEach(z=>z.classList.remove('active'));
+  allBnds.forEach(b=>b.classList.remove('hot'));
+  flow.classList.toggle('focused', i>=0);
+  allNums.forEach(g=>{ const st=+g.dataset.step-1;
+    g.classList.toggle('cur', st===i); g.classList.toggle('past', i>=0 && st<i); });
+  segs.forEach((sg,k)=>{ sg.classList.toggle('cur', k===i); sg.classList.toggle('past', i>=0 && k<i); });
+  $('cur').textContent = i>=0 ? String(i+1).padStart(2,'0') : '—';
+  if(i<0) return;
+  const s = STEPS[i];
+  const node = document.getElementById(s.node);
+  node.classList.add('active'); if(s.tone==='warn') node.classList.add('tone-warn');
+  if(s.edge){ const e=document.getElementById(s.edge); e.classList.add('flowing');
+    if(s.tone==='warn') e.classList.add('tone-warn');
+    if(s.tone==='safe') e.classList.add('tone-safe'); }
+  (s.zones||[]).forEach(z=>{ const el=document.getElementById(z); if(el) el.classList.add('active'); });
+  if(s.hot){ const b=document.getElementById(s.hot); if(b) b.classList.add('hot'); }
+}
+
+/* ---- progress segments ---- */
+const progress = $('progress'), segs=[];
+for(let i=0;i<N;i++){ const sg=document.createElement('span'); sg.className='seg';
+  sg.setAttribute('role','button'); sg.setAttribute('aria-label','Step '+(i+1));
+  sg.addEventListener('click',()=>{ if(intro) exitIntro(); simJump(i); });
+  progress.appendChild(sg); segs.push(sg); }
+$('tot').textContent = String(N).padStart(2,'0');
+
+/* ============================================================
+   run state
+   ============================================================ */
+let simCur = -1;                 /* last completed step index */
+let phase = 'idle';              /* idle | animating | waiting | done */
+let runToken = null;             /* cancel token for the in-flight step */
+let autoplay = false, autoTimer = null;
+
+function cancelRun(){ if(runToken) runToken.cancelled = true; runToken = null;
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; } }
+
+function easeInOutCubic(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+function flyPacket(edgeId, dur, token){
+  return new Promise(res=>{
+    const path = document.getElementById(edgeId);
+    const L = path.getTotalLength();
+    if(reduce){ const p=path.getPointAtLength(L); setPacket(p.x,p.y); return res(); }
+    const t0 = performance.now();
+    (function frame(now){
+      if(token.cancelled) return res();
+      const t = Math.min(1,(now-t0)/dur);
+      const p = path.getPointAtLength(easeInOutCubic(t)*L);
+      setPacket(p.x,p.y);
+      if(t<1) requestAnimationFrame(frame); else res();
+    })(t0);
+  });
+}
+function pulsePacket(nodeId, token){
+  return new Promise(res=>{
+    const c = nodeCenter(nodeId); setPacket(c.x,c.y);
+    if(reduce) return res();
+    packet.classList.remove('pulse'); void packet.getBBox; /* reflow-ish no-op for svg */
+    requestAnimationFrame(()=>packet.classList.add('pulse'));
+    setTimeout(()=>{ packet.classList.remove('pulse'); res(); }, token.cancelled?0:720);
+  });
+}
+function wait(ms, token){ return new Promise(r=>setTimeout(r, (reduce||_token_c(token))?0:ms));
+  function _token_c(t){ return t && t.cancelled; } }
+
+function typeInto(body, el, html, cps, token){
+  return new Promise(res=>{
+    /* type plain text, then swap in the rich html at the end */
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    const txt = tmp.textContent;
+    if(reduce){ el.innerHTML = html; return res(); }
+    const cur = document.createElement('span'); cur.className='cursor';
+    let i = 0;
+    (function tick(){
+      if(token.cancelled){ el.innerHTML = html; return res(); }
+      if(i<=txt.length){
+        el.textContent = txt.slice(0,i); el.appendChild(cur);
+        i += 1 + (txt.length>160 ? 2 : 0);   /* long answers reveal faster */
+        setTimeout(tick, cps);
+        body.scrollTop = body.scrollHeight;
+      } else { el.innerHTML = html; res(); }
+    })();
+  });
+}
+function addMsg(body, ev){ const d=document.createElement('div'); d.className='msg '+ev.who;
+  body.appendChild(d); body.scrollTop = body.scrollHeight; return d; }
+
+async function playChat(s, token){
+  for(const p of livePanels){
+    if(p.type!=='chat') continue;
+    const evs = s[p._field]; if(!evs || !evs.length) continue;
+    for(const ev of evs){
+      const el = addMsg(p._body, ev);
+      if(ev.type) await typeInto(p._body, el, ev.t, 26, token);
+      else { el.innerHTML = ev.t; await wait(320, token); }
+      p._body.scrollTop = p._body.scrollHeight;
+      if(token.cancelled) return;
+    }
+  }
+}
+
+/* ---- panel renderers ---- */
+function inspectorHTML(ins){
+  let h = '<span class="itone '+ins.tone+'">'+ins.toneLabel+'</span>';
+  h += '<div class="ititle">'+ins.title+'</div>';
+  (ins.rows||[]).forEach(r=>{
+    if(r.sec){ h += '<div class="isec">'+r.sec+'</div>'; return; }
+    if(r.head){ h += '<div class="imap ihead"><span>'+(r.h1||'held')+'</span>'
+                   + '<span>'+(r.h2||'list')+'</span><span>'+(r.h3||'picked from it')+'</span></div>'; return; }
+    if(r.field){ h += '<div class="imap"><span class="mraw">'+r.from+'</span>'
+                    + '<span class="mfield"><span class="marr">&rarr;</span>'+r.field+'</span>'
+                    + '<span class="mval">'+r.to+'</span></div>'; return; }
+    h += '<div class="irow'+(r.strike?' strike':'')+'">'
+       + (r.k ? '<span class="k">'+r.t+'</span>' : r.t) + '</div>';
+  });
+  if(ins.note) h += '<div class="inote">'+ins.note+'</div>';
+  return h;
+}
+function codeHTML(pay){
+  let h = pay.title ? '<div class="ctitle">'+pay.title+'</div>' : '';
+  (pay.lines||[]).forEach((ln,idx)=>{
+    const o = (typeof ln === 'string') ? {t:ln} : ln;
+    const cls = 'cline'+(o.hl?' hl':'')+(o.add?' add':'')+(o.del?' del':'');
+    const num = pay.numbers ? '<span class="cn">'+(o.n!=null?o.n:idx+1)+'</span>' : '';
+    h += '<div class="'+cls+'">'+num+'<span class="ct">'+o.t+'</span></div>';
+  });
+  return h;
+}
+function metricsHTML(rows){
+  return (rows||[]).map(r =>
+    '<div class="mrow'+(r.tone?' '+r.tone:'')+'">'
+    + '<span class="mlabel">'+r.label+'</span>'
+    + '<span class="mvalue">'+r.value+'</span>'
+    + (r.delta ? '<span class="mdelta">'+r.delta+'</span>' : '<span></span>')
+    + '</div>').join('');
+}
+function renderReplace(p, payload){
+  const html = p.type==='inspector' ? inspectorHTML(payload)
+             : p.type==='code'      ? codeHTML(payload)
+             : metricsHTML(payload);
+  p._body.classList.remove('swap'); void p._body.offsetWidth;
+  p._body.innerHTML = html; p._body.classList.add('swap');
+}
+
+/* ---- log timestamps ---- */
+const clock0 = (function(){ const m = /^(\d+):(\d+):(\d+)$/.exec(CONFIG.clock.start||'00:00:00');
+  return m ? (+m[1])*3600 + (+m[2])*60 + (+m[3]) : 0; })();
+function stamp(n){ const t = clock0 + (n-1)*(CONFIG.clock.step||1);
+  const pad = v => String(v).padStart(2,'0');
+  return pad(Math.floor(t/3600)%24)+':'+pad(Math.floor(t/60)%60)+':'+pad(t%60); }
+
+function appendLog(p, s, rows, instant){
+  rows.forEach(a=>{
+    const empty = p._body.querySelector('.aempty'); if(empty) empty.remove();
+    const d = document.createElement('div'); d.className='arow';
+    if(instant) d.style.animation='none';
+    d.innerHTML = '<span class="ts">'+stamp(s.n)+'</span>'
+      + '<span class="abadge '+(a.tone||'az')+'">'+a.badge+'</span><span class="atxt">'+a.t+'</span>';
+    p._body.appendChild(d); p._body.scrollTop = p._body.scrollHeight;
+  });
+}
+
+/* everything except chat, which is animated separately */
+function commitStep(s, instant){
+  livePanels.forEach(p=>{
+    if(p.type==='chat') return;
+    const payload = s[p._field];
+    if(p._def.mode==='append'){ if(payload && payload.length) appendLog(p, s, payload, instant); }
+    else if(payload) renderReplace(p, payload);
+  });
+}
+function emptyHTML(p){
+  if(p._def.mode==='append') return p.empty ? '<div class="aempty">'+p.empty+'</div>' : '';
+  return '<div class="aempty" style="font-family:var(--sans)">'+(p.empty||CONFIG.readyText)+'</div>';
+}
+function resetPanels(){ livePanels.forEach(p=>{ p._body.innerHTML = emptyHTML(p); }); }
+
+async function beatFlash(b, token){
+  if(reduce || token.cancelled) return;
+  if(b.fail){ const f=$(b.fail); if(f){ f.classList.add('flash-red'); await wait(520, token); f.classList.remove('flash-red'); } }
+  if(b.pass){ const g=$(b.pass); if(g) g.classList.add('flash-green'); }
+  if(b.boundary){ const bd=$(b.boundary); if(bd) bd.classList.add('hot'); }
+  await wait(520, token);
+  if(b.pass){ const g=$(b.pass); if(g) g.classList.remove('flash-green'); }
+}
+
+async function playStep(i){
+  if(i<0 || i>=N || phase==='animating') return;
+  cancelRun(); const token = runToken = {cancelled:false};
+  phase='animating';
+  const s = STEPS[i];
+  setActive(i); packetTone(s); packet.classList.add('show');
+  /* park the packet at the start of the flight before moving */
+  if(s.edge){ const p0 = document.getElementById(s.edge).getPointAtLength(0); setPacket(p0.x,p0.y); }
+  else { const c=nodeCenter(s.node); setPacket(c.x,c.y); }
+  if(!s.chatAfter) await playChat(s, token);
+  if(token.cancelled) return;
+  if(s.edge) await flyPacket(s.edge, s.dur||700, token);
+  else await pulsePacket(s.node, token);
+  if(token.cancelled) return;
+  if(s.beat) await beatFlash(s.beat, token);
+  if(token.cancelled) return;
+  if(s.chatAfter) await playChat(s, token);
+  if(token.cancelled) return;
+  commitStep(s, false);
+  simCur = i;
+  phase = (i===N-1) ? 'done' : 'waiting';
+  if(phase==='waiting' && autoplay){ autoTimer = setTimeout(()=>playStep(simCur+1), CONFIG.autoplayMs); }
+  if(phase==='done'){ setAutoplay(false); }
+}
+
+/* pure rebuild of every panel + diagram state from STEPS[0..i] */
+function renderStateAt(i){
+  cancelRun();
+  resetPanels();
+  for(let k=0;k<=i;k++){
+    const s = STEPS[k];
+    livePanels.forEach(p=>{
+      if(p.type!=='chat') return;
+      (s[p._field]||[]).forEach(ev=>{ const el=addMsg(p._body, ev); el.innerHTML=ev.t; el.style.animation='none'; });
+    });
+    commitStep(s, true);
+  }
+  if(i>=0){ setActive(i); packetTone(STEPS[i]);
+    const c=nodeCenter(STEPS[i].node); setPacket(c.x,c.y); packet.classList.add('show'); }
+  else { setActive(-1); packet.classList.remove('show'); }
+  livePanels.forEach(p=>{ p._body.scrollTop = p._body.scrollHeight; });
+  simCur = i; phase = (i===N-1) ? 'done' : 'waiting';
+}
+function simJump(i){ renderStateAt(i); }
+
+function setAutoplay(v){ autoplay=v; const b=$('autop');
+  b.classList.toggle('on', v); b.setAttribute('aria-pressed', String(v));
+  b.textContent = 'Autoplay: '+(v?'on':'off');
+  if(!v && autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  if(v && (phase==='waiting'||phase==='idle')){ autoTimer=setTimeout(()=>playStep(simCur+1), 1200); } }
+
+/* ============================================================
+   run control — one view, and it opens paused
+   ============================================================ */
+/* Reset to the ready state. Deliberately does NOT play: nothing is sent until
+   the operator presses the run button (or Space). */
+function armSim(){
+  cancelRun();
+  setAutoplay(false);
+  renderStateAt(-1);
+  phase='idle';
+  history.replaceState(null,'',location.pathname.split('/').pop());
+}
+/* Send from the top. Pressing it mid-run restarts. */
+function runRequest(){ armSim(); setTimeout(()=>playStep(0), 120); }
+
+/* ---- chrome text from CONFIG ---- */
+$('m-sim').innerHTML = '<span class="tri">&#9654;</span> ' + CONFIG.runLabel;
+$('startbtn').innerHTML = '<span class="tri">&#9654;</span> ' + CONFIG.startLabel;
+if(CONFIG.deck && CONFIG.deck.href){
+  const d = $('deckbtn'); d.hidden = false;
+  d.setAttribute('href', CONFIG.deck.href);
+  d.innerHTML = '&#9666; ' + (CONFIG.deck.label || 'Slides');
+  d.addEventListener('click', e=>{
+    /* embedded in the deck's overlay: close it instead of navigating, so fullscreen survives */
+    if(window.parent !== window){ e.preventDefault(); window.parent.postMessage({type:'close-sim'}, '*'); }
+  });
+}
+$('m-sim').addEventListener('click', runRequest);
+$('autop').addEventListener('click', ()=>setAutoplay(!autoplay));
+
+/* ============================================================
+   intro state — diagram only + start button
+   ============================================================ */
+const stageEl = $('stage');
+let intro = stageEl.classList.contains('intro');
+function exitIntro(){ if(!intro) return; intro = false; stageEl.classList.remove('intro'); }
+$('startbtn').addEventListener('click', ()=>{ exitIntro(); armSim(); }); /* run view, paused */
+
+/* ============================================================
+   input wiring
+   ============================================================ */
+allNodes.forEach(n=>{
+  /* clicking a node scrubs the run to the step that node belongs to. No keydown
+     handler on purpose: Space must reach the window handler to advance the run. */
+  n.addEventListener('click', ()=>{ const list = NODE_STEPS[n.id]; if(!list) return;
+    if(intro) exitIntro();
+    simJump(list[0]); });
+});
+
+/* After any MOUSE click, drop focus from the clicked control. Otherwise the
+   focused button re-activates on the next Space press (e.g. the run button
+   restarting the sim instead of advancing it). Keyboard activation (detail 0)
+   keeps focus for accessibility. */
+document.addEventListener('click', e=>{
+  if(e.detail===0) return;
+  const el = e.target.closest ? e.target.closest('button,[tabindex]') : null;
+  if(el && el.blur) el.blur();
+});
+allNums.forEach(g=>g.addEventListener('click', ()=>{
+  const i = +g.dataset.step-1;
+  if(intro) exitIntro();
+  simJump(i);
+}));
+
+/* digit shortcuts: 1-9 then 0, -, = for steps 10-12 */
+const DIGITS = {};
+'1234567890-='.split('').forEach((ch,idx)=>{ if(idx < N) DIGITS[ch] = idx; });
+
+window.addEventListener('keydown', e=>{
+  if(intro && e.key!=='f' && e.key!=='F'){
+    /* leaving the intro lands in the run view READY, never mid-send. Only S sends. */
+    if(e.key==='s'||e.key==='S'){ exitIntro(); runRequest(); }
+    else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'||e.key==='ArrowRight'){
+      e.preventDefault(); exitIntro(); armSim();
+    } else if(e.key in DIGITS){ exitIntro(); simJump(DIGITS[e.key]); }
+    else if(e.key==='Escape'){ exitIntro(); armSim(); }
+    return;
+  }
+  switch(e.key){
+    case 'ArrowRight': case 'PageDown': case ' ': case 'Spacebar':
+      e.preventDefault();
+      if(phase==='waiting'||phase==='idle') playStep(simCur+1);
+      break;
+    case 'ArrowLeft': case 'PageUp':
+      e.preventDefault(); renderStateAt(Math.max(-1,simCur-1));
+      break;
+    case 'Home': e.preventDefault(); armSim(); break;
+    case 'End':  e.preventDefault(); renderStateAt(N-1); break;
+    case 's': case 'S': runRequest(); break;
+    case 'a': case 'A': setAutoplay(!autoplay); break;
+    case 'f': case 'F':
+      if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+      else { document.exitFullscreen?.(); }
+      break;
+    case 'Escape': armSim(); break;
+    default:
+      if(e.key in DIGITS) simJump(DIGITS[e.key]);
+  }
+});
+
+/* ---- init (hash deep-link: #4 scrubs the run to step 4, skipping the intro) ---- */
+const h = parseInt((location.hash||'').slice(1),10);
+if(!isNaN(h) && h>=1 && h<=N){ exitIntro(); renderStateAt(h-1); }
+else renderStateAt(-1);
+window.addEventListener('hashchange', ()=>{
+  const v = parseInt(location.hash.slice(1),10);
+  if(!isNaN(v) && v>=1 && v<=N && v-1!==simCur){ exitIntro(); renderStateAt(v-1); }
+});
+})();
+</script>
+</body>
+</html>

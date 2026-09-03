@@ -1,13 +1,16 @@
 # REST APIs, JSON & the Microsoft Graph Security API — facilitator notes
 
-**Presenter:** Lorenzo Ireland · Principal Cloud Solution Architect · Microsoft Federal
-**Audience:** Microsoft Cloud Solution Architects · **Format:** 20-slide HTML deck + live PowerShell 7 demo (AppOnly, then Delegated)
+**Presenter:** Lorenzo J. Ireland · Cloud Solution Architect (AI+Security) · Microsoft
+**Audience:** Microsoft Cloud Solution Architects · **Format:** 20-slide HTML deck + three interactive simulations + live PowerShell 7 demo (AppOnly, then Delegated)
 
 ## What is in this package
 
 | File | Purpose |
 | --- | --- |
-| `REST-APIs-JSON-Graph-Security-API.html` | The 20-slide deck. Open in any browser (Edge recommended). Self-contained — no network needed to present. |
+| `class_content/REST-APIs-JSON-Graph-Security-API.html` | The 20-slide deck. Open in any browser (Edge recommended). Self-contained — no network needed to present. |
+| `class_content/Sim-App-Registration-Admin-Consent.html` | 13-step walkthrough of the setup script: app registration, secret, service principal, `ThreatHunting.Read.All`, and programmatic admin consent. |
+| `class_content/Sim-AppOnly-Client-Credentials.html` | 12-step walkthrough of the app-only call: discovery, client-credentials token, `runHuntingQuery`, 401/403 boundaries, and JSON output. |
+| `class_content/Sim-Delegated-Sign-In-Consent.html` | 13-step walkthrough of delegated sign-in: browser authorization, admin-consent boundary, code redemption, `scp`, Graph call, and JSON output. |
 | `images/JSON-Anatomy-Diagram.svg` / `.png` | Stand-alone "Anatomy of a JSON Object" diagram (object, key/value pairs, six data types, array of objects, object within an object, PowerShell 7 type mapping). Same diagram is embedded on slide 8. |
 | `scripts/New-HuntingAppRegistration.ps1` | **Run once, the day before.** Creates the app registration programmatically through Graph REST calls: app + `ThreatHunting.Read.All` (Application) + tenant-wide admin consent (`appRoleAssignedTo`) + a **12-month client secret** (shown once). Writes `scripts/HuntingDemo.settings.json` (identifiers and endpoints — never the secret). Optional `-IncludeDelegatedScope`. |
 | `scripts/Invoke-HuntingQuery.ps1` | The live-demo script. `-AuthMode AppOnly` (raw `Invoke-RestMethod`: discovery → token → Graph) or `-AuthMode Delegated` (`Connect-MgGraph` → `Invoke-MgGraphRequest`). Reads tenant / client ID / environment from `scripts/HuntingDemo.settings.json`. |
@@ -17,6 +20,12 @@
 
 - **← / →** or **Space** — next / previous · **N** — speaker notes (every slide has them) · **F** — full screen · **1–9** — jump to a slide · **Home / End** — first / last · click the progress bar to jump.
 - Slide 20 is an animated mock terminal that "runs" the script — your cue to switch to the real `pwsh` window.
+
+### Presenting the simulations
+
+- Run them in this order: **app registration and admin consent** → **app-only client credentials** → **delegated sign-in and consent**. This establishes the application identity before contrasting app-only and delegated tokens.
+- Select **Start simulation**, then **Run the script** or **Run the call**. Use **Space** / **→** to advance, **←** to step back, numbered progress segments to jump, and **Autoplay** when narration does not need to pause on each payload.
+- Use the simulators before the live terminal when you want every learner to see the same requests, responses, permission boundaries, and failure states. Use the **Slides** control to return to the deck.
 
 ## How the endpoints are resolved (Public vs Azure Government)
 
@@ -55,11 +64,12 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 
 ## Day-before setup
 
-1. **Licensing / data** — Defender XDR with **Microsoft Entra ID P2** so `EntraIdSignInEvents` is populated. Paste `SignIns-Last24h.kql` into Defender > Advanced hunting once to confirm rows come back. No P2? Use the `IdentityLogonEvents` fallback at the end of the .kql (needs Defender for Identity / Defender for Cloud Apps).
-2. **PowerShell 7** — `pwsh`, `$PSVersionTable.PSVersion` ≥ 7.0. Windows PowerShell 5.1 lacks `-Authentication`, `-Token`, `-StatusCodeVariable`, `-SkipHttpErrorCheck` and `ConvertFrom-SecureString -AsPlainText`.
-3. **Graph PowerShell SDK** (needed by the registration script and by Delegated mode):
+1. **Class pages** — open all four files in `class_content` locally. Confirm the deck advances, notes and full screen work, each simulation starts and steps in both directions, and every **Slides** control returns to the deck.
+2. **Licensing / data** — Defender XDR with **Microsoft Entra ID P2** so `EntraIdSignInEvents` is populated. Paste `SignIns-Last24h.kql` into Defender > Advanced hunting once to confirm rows come back. No P2? Use the `IdentityLogonEvents` fallback at the end of the .kql (needs Defender for Identity / Defender for Cloud Apps).
+3. **PowerShell 7** — `pwsh`, `$PSVersionTable.PSVersion` ≥ 7.0. Windows PowerShell 5.1 lacks `-Authentication`, `-Token`, `-StatusCodeVariable`, `-SkipHttpErrorCheck` and `ConvertFrom-SecureString -AsPlainText`.
+4. **Graph PowerShell SDK** (needed by the registration script and by Delegated mode):
    `Install-Module Microsoft.Graph.Authentication -Scope CurrentUser`
-4. **Create the app registration** — sign in as a **Privileged Role Administrator** (or Global Administrator). Cloud Application Administrator can create the app but cannot consent to Microsoft Graph *application* permissions.
+5. **Create the app registration** — sign in as a **Privileged Role Administrator** (or Global Administrator). Cloud Application Administrator can create the app but cannot consent to Microsoft Graph *application* permissions.
 
    ```powershell
    .\scripts\New-HuntingAppRegistration.ps1               # add -TenantId <id-or-domain> if you have several tenants
@@ -68,7 +78,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
    What you will see, step by step (each line is a Graph REST call): `GET /servicePrincipals?$filter=appId eq '00000003-…'` (finds the `ThreatHunting.Read.All` app-role id — no hard-coded GUIDs), `POST /applications`, `POST /applications/{id}/addPassword` (12 months), `POST /servicePrincipals`, `POST /servicePrincipals/{graph}/appRoleAssignedTo` (= admin consent). It then prints **Tenant ID, Client ID and the secret — copy the secret now, it cannot be retrieved later** — and writes `scripts/HuntingDemo.settings.json`.
    Store the secret outside the scripts, e.g. `$env:HUNT_CLIENT_SECRET = '<secret>'` for the demo session (the demo script picks it up; otherwise it prompts). Prefer a certificate or managed identity for anything beyond a demo.
    Portal check: Entra admin center → App registrations → *Graph Security API - Hunting Demo* → API permissions → status **Granted for &lt;tenant&gt;**.
-5. **Dry run both modes** (allow 1–2 minutes after step 4 for replication):
+6. **Dry run both modes** (allow 1–2 minutes after step 5 for replication):
 
    ```powershell
    .\scripts\Invoke-HuntingQuery.ps1                     # AppOnly — settings file supplies tenant + client ID; prompts for the secret

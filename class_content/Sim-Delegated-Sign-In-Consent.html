@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulator — Delegated call · sign-in, admin consent, scp · Graph Security API</title>
+<!-- ============================================================
+     create-simulator — interactive step-through flow walkthrough.
+
+     Self-contained: no CDN, no web fonts, no fetch. Works over
+     file:// and any static server.
+
+     Design tokens are shared with the create-ms-ppt deck engine so a
+     deck and its simulator read as one artifact when you alt-tab.
+     NEVER edit :root, the CSS, or the engine at the bottom.
+
+     YOU AUTHOR ONLY:
+       - the CONFIG block  (run labels, deck back-link, log clock)
+       - the PANELS array  (1-3 dock panels)
+       - the STEPS array   (the run: one entry per step)
+       - the page title above
+
+     THE SCENE IS GENERATED. scripts/new_sim.py --scene rewrites the
+     two marked regions below (CANVAS and SCENE) from a JSON spec. It
+     sizes the normal-mode canvas so it has the same aspect as the
+     viewBox (zero letterbox) and so the scene's main band clears the
+     dock. Do not hand-edit either region — re-run the compiler.
+     ============================================================ -->
+<style>
+:root{
+  /* surfaces */
+  --bg0:#06060a; --stage0:#0b0b10; --stage1:#100f17;
+  --surface:#15151c; --surface2:#1a1a22;
+  --line:#2a2a35; --line-soft:#1e1e27;
+  /* text */
+  --tx:#f4f4f7; --tx2:#abadba; --tx3:#73747f;
+  /* azure accent */
+  --az-bright:#7fe9ff; --az:#50e6ff; --az-deep:#0a84d6;
+  --accent: linear-gradient(100deg,#7fe9ff 0%, #2fa9ee 55%, #0a84d6 100%);
+  /* microsoft four-color */
+  --ms-red:#f25022; --ms-green:#7fba00; --ms-blue:#00a4ef; --ms-yellow:#ffb900;
+  --violet:#bda4ff;
+  /* type scale (container query units on the 16:9 stage) */
+  --fs-kicker:1.85cqh; --fs-body:2.45cqh; --fs-sub:2cqh; --fs-small:1.6cqh;
+  --serif:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Code","Cascadia Mono","Consolas",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  background: radial-gradient(1200px 800px at 80% -10%, #0d1320 0%, transparent 60%), var(--bg0);
+  color:var(--tx); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  display:grid; place-items:center; overflow:hidden;
+}
+#stage{
+  position:relative;
+  width:min(100vw, 177.78vh); height:min(56.25vw, 100vh);
+  background: radial-gradient(120% 130% at 12% 8%, var(--stage1) 0%, var(--stage0) 55%, #07070b 100%);
+  container-type:size; container-name:stage;
+  overflow:hidden; isolation:isolate;
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.glow{ position:absolute; border-radius:50%; filter:blur(60px); z-index:0; pointer-events:none; }
+.glow.g1{ width:55cqw; height:55cqw; left:-10cqw; top:-18cqh;
+  background:radial-gradient(circle, rgba(10,132,214,.16), transparent 65%); animation:drift1 26s ease-in-out infinite; }
+.glow.g2{ width:48cqw; height:48cqw; right:-12cqw; bottom:-20cqh;
+  background:radial-gradient(circle, rgba(80,230,255,.10), transparent 65%); animation:drift2 32s ease-in-out infinite; }
+@keyframes drift1{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(6cqw,4cqh) } }
+@keyframes drift2{ 0%,100%{ transform:translate(0,0) } 50%{ transform:translate(-5cqw,-3cqh) } }
+#stage::after{
+  content:""; position:absolute; inset:0; z-index:6; pointer-events:none;
+  opacity:.035; mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ===================== mode toggle (lives in the bottom bar) ===================== */
+.modes{ display:flex; border:1px solid var(--line); border-radius:10cqh; overflow:hidden;
+  background:rgba(255,255,255,.02); flex:none; }
+.modes button{ font-family:var(--sans); font-size:1.35cqh; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--tx2); background:none; border:none; padding:.6cqh 1.2cqw; cursor:pointer;
+  display:flex; align-items:center; gap:.6cqw; transition:all .25s ease; white-space:nowrap; }
+.modes button:hover{ color:var(--tx); }
+.modes button.on{ background:var(--accent); color:#04121c; font-weight:600; }
+.modes button .tri{ font-size:1.1cqh; }
+.deckbtn{ display:flex; align-items:center; gap:.6cqw; font-family:var(--sans); font-size:1.35cqh;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--tx2); text-decoration:none; flex:none;
+  border:1px solid var(--line); border-radius:10cqh; padding:.6cqh 1.2cqw; margin-right:1cqw;
+  background:rgba(255,255,255,.02); transition:all .25s ease; white-space:nowrap; }
+.deckbtn:hover{ color:var(--tx); border-color:var(--az-deep); }
+.deckbtn[hidden]{ display:none; }
+
+/* ===================== diagram canvas ===================== */
+/* CANVAS:BEGIN — generated by scripts/new_sim.py --scene. Do not hand-edit.
+   viewBox aspect 2.718 : normal-mode region has the same aspect (zero letterbox) and
+   is sized so the scene's main band (82.9% of the viewBox) clears the dock. */
+#canvas{ position:absolute; top:1.8cqh; left:2.6cqw; width:94.8cqw; height:62cqh; z-index:2;
+  transition:top .55s cubic-bezier(.22,.61,.36,1), left .55s cubic-bezier(.22,.61,.36,1),
+    width .55s cubic-bezier(.22,.61,.36,1), height .55s cubic-bezier(.22,.61,.36,1); }
+/* intro: the diagram IS the page */
+#stage.intro #canvas{ top:3cqh; left:1.5cqw; width:97cqw; height:82cqh; }
+/* CANVAS:END */
+#stage.intro #dock, #stage.intro .chrome-bot{ opacity:0; pointer-events:none; }
+#startbtn{ position:absolute; left:50%; bottom:4.6cqh; transform:translateX(-50%); z-index:8;
+  font-family:var(--sans); font-size:2.1cqh; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  background:var(--accent); color:#04121c; border:none; border-radius:10cqh; padding:1.9cqh 4.5cqw;
+  cursor:pointer; display:flex; align-items:center; gap:1.2cqw;
+  box-shadow:0 0 34px rgba(80,230,255,.35), 0 14px 40px -14px rgba(0,0,0,.8);
+  opacity:0; pointer-events:none; transition:opacity .4s ease; }
+#stage.intro #startbtn{ opacity:1; pointer-events:auto; }
+#startbtn:hover{ box-shadow:0 0 46px rgba(80,230,255,.55), 0 14px 40px -14px rgba(0,0,0,.8); }
+#startbtn .tri{ font-size:1.7cqh; }
+#flow{ width:100%; height:100%; display:block; }
+/* the extra band is intro-only: once the dock is up, that vertical space
+   belongs to the enlarged diagram (a dock panel takes the subject over) */
+.extra-band{ transition:opacity .4s ease; }
+#stage:not(.intro) .extra-band{ opacity:0 !important; pointer-events:none; }
+
+/* zones */
+.zone rect.zbg{ fill:rgba(255,255,255,.028); stroke:#42424f; stroke-width:1.2; rx:12; }
+.zone .zlabel{ font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:2.6px;
+  fill:var(--tx2); text-transform:uppercase; }
+.zone .zsub{ font-family:var(--sans); font-size:10px; letter-spacing:.6px; fill:#848692; }
+.zone.z-red rect.zbg{ stroke:rgba(242,80,34,.55); fill:rgba(242,80,34,.045); }
+.zone.z-red .zlabel{ fill:#ff8a70; }
+.zone.z-purple rect.zbg{ stroke:rgba(189,164,255,.5); fill:rgba(189,164,255,.04); }
+.zone.z-purple .zlabel{ fill:var(--violet); }
+.zone.z-green rect.zbg{ stroke:rgba(127,186,0,.7); fill:rgba(127,186,0,.035); }
+.zone.z-blue rect.zbg{ stroke:rgba(0,164,239,.6); fill:rgba(0,164,239,.035); }
+.zone.z-az rect.zbg{ stroke:rgba(80,230,255,.5); fill:rgba(80,230,255,.03); }
+#flow.focused .zone{ opacity:.55; transition:opacity .35s ease; }
+#flow.focused .zone.active{ opacity:1; }
+.zone{ transition:opacity .35s ease; }
+
+/* boundary lines */
+.bline{ stroke-dasharray:5 6; stroke-width:1.5; fill:none; }
+.bline.b1{ stroke:rgba(127,186,0,.55); }
+.bline.b2{ stroke:rgba(242,80,34,.55); }
+.bline.b1.hot{ filter:drop-shadow(0 0 6px rgba(127,186,0,.9)); stroke:var(--ms-green); }
+.bchip div{ font-family:var(--sans); font-size:8.5px; font-weight:600; letter-spacing:1.6px;
+  text-transform:uppercase; text-align:center; padding:3px 4px; border-radius:6px; line-height:1.25; }
+.bchip.c1 div{ color:var(--ms-green); background:#0e1409; border:1px solid rgba(127,186,0,.5); }
+.bchip.c2 div{ color:var(--ms-red); background:#170d0b; border:1px solid rgba(242,80,34,.5); }
+
+/* edges */
+.edge{ fill:none; stroke:rgba(80,230,255,.36); stroke-width:1.7; transition:stroke .3s ease; }
+.edge.dashed{ stroke-dasharray:4 5; }
+.edge.soft{ stroke:rgba(189,164,255,.30); stroke-dasharray:3 5; }
+.edge.bad{ stroke:rgba(242,80,34,.45); stroke-dasharray:4 5; }
+.edge.flowing{ stroke:var(--az); stroke-width:2.4; stroke-dasharray:7 9;
+  animation:dashflow .7s linear infinite; filter:drop-shadow(0 0 5px rgba(80,230,255,.55)); }
+.edge.flowing.tone-warn{ stroke:var(--ms-yellow); filter:drop-shadow(0 0 5px rgba(255,185,0,.55)); }
+.edge.flowing.tone-safe{ stroke:var(--ms-green); filter:drop-shadow(0 0 5px rgba(127,186,0,.55)); }
+@keyframes dashflow{ to{ stroke-dashoffset:-16; } }
+
+/* nodes (foreignObject shells) */
+.node{ cursor:pointer; }
+.node .shell{
+  height:100%; display:flex; flex-direction:column; justify-content:center; gap:2px;
+  background:var(--surface); border:1.3px solid #4a4a58; border-radius:9px;
+  padding:6px 9px; transition:border-color .3s ease, box-shadow .3s ease, background .3s ease;
+}
+.node .nname{ font-family:var(--sans); font-size:12.5px; font-weight:600; color:var(--tx);
+  line-height:1.15; letter-spacing:-.1px; }
+.node .nsub{ font-family:var(--sans); font-size:9.5px; font-weight:400; color:#8f919e; line-height:1.25; }
+.node .ntag{ display:inline-block; font-family:var(--mono); font-size:7.5px; letter-spacing:1.6px;
+  color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.22);
+  border-radius:4px; padding:1px 5px; margin-bottom:2px; width:fit-content; }
+.node .mono, .node code{ font-family:var(--mono); }
+
+.node.round .shell{ border-radius:22px; align-items:center; text-align:center; }
+.node.n-blue .shell{ border-color:rgba(0,164,239,.5); background:linear-gradient(180deg, rgba(0,164,239,.06), var(--surface)); }
+.node.n-green .shell{ border-color:rgba(127,186,0,.55); background:linear-gradient(180deg, rgba(127,186,0,.05), var(--surface)); }
+.node.n-green .ntag{ color:var(--ms-green); background:rgba(127,186,0,.08); border-color:rgba(127,186,0,.3); }
+.node.n-red .shell{ border-color:rgba(242,80,34,.6); background:linear-gradient(180deg, rgba(242,80,34,.06), var(--surface)); }
+.node.n-red .nname{ color:#ff8a70; }
+.node.n-purple .shell{ border-color:rgba(189,164,255,.45); background:linear-gradient(180deg, rgba(189,164,255,.05), var(--surface)); }
+.node.n-purple .nname{ color:var(--violet); }
+.node.dashed .shell{ border-style:dashed; }
+
+.node.active .shell{ border-color:var(--az); animation:nodeglow 1.9s ease-in-out infinite; }
+.node.active.n-green .shell{ border-color:var(--ms-green); animation-name:nodeglowG; }
+.node.active.tone-warn .shell{ border-color:var(--ms-yellow); animation-name:nodeglowW; }
+@keyframes nodeglow{ 0%,100%{ box-shadow:0 0 10px -2px rgba(80,230,255,.45);} 50%{ box-shadow:0 0 22px -2px rgba(80,230,255,.75);} }
+@keyframes nodeglowG{ 0%,100%{ box-shadow:0 0 10px -2px rgba(127,186,0,.45);} 50%{ box-shadow:0 0 22px -2px rgba(127,186,0,.75);} }
+@keyframes nodeglowW{ 0%,100%{ box-shadow:0 0 10px -2px rgba(255,185,0,.45);} 50%{ box-shadow:0 0 22px -2px rgba(255,185,0,.75);} }
+.node.flash-red .shell{ border-color:var(--ms-red) !important; box-shadow:0 0 24px -2px rgba(242,80,34,.85) !important; }
+.node.flash-green .shell{ border-color:var(--ms-green) !important; box-shadow:0 0 24px -2px rgba(127,186,0,.85) !important; }
+
+/* step number badges */
+.snum{ cursor:pointer; }
+.snum circle{ fill:#0b0f17; stroke:rgba(80,230,255,.45); stroke-width:1.3; transition:all .3s ease; }
+.snum text{ font-family:var(--mono); font-size:11px; fill:var(--az-bright); text-anchor:middle;
+  dominant-baseline:central; }
+.snum:hover circle{ stroke:var(--az-bright); }
+.snum.cur circle{ stroke:var(--az-bright); stroke-width:2; filter:drop-shadow(0 0 6px rgba(80,230,255,.8)); }
+.snum.past circle{ stroke:rgba(44,111,149,.9); }
+.snum.past text{ fill:#5f97b5; }
+
+/* packet */
+#packet{ pointer-events:none; opacity:0; transition:opacity .25s ease; }
+#packet rect{ fill:#0b0f17; stroke:var(--az); stroke-width:1.4;
+  filter:drop-shadow(0 0 7px rgba(80,230,255,.8)); }
+#packet text{ font-family:var(--mono); font-size:9.5px; font-weight:600; fill:var(--az-bright);
+  text-anchor:middle; dominant-baseline:central; letter-spacing:.6px; }
+#packet.show{ opacity:1; }
+#packet.tone-warn rect{ stroke:var(--ms-yellow); filter:drop-shadow(0 0 7px rgba(255,185,0,.8)); }
+#packet.tone-warn text{ fill:var(--ms-yellow); }
+#packet.tone-safe rect{ stroke:var(--ms-green); filter:drop-shadow(0 0 7px rgba(127,186,0,.8)); }
+#packet.tone-safe text{ fill:var(--ms-green); }
+/* pulse the INNER group only — a CSS transform on #packet itself would
+   override its SVG translate() position and teleport it to the origin */
+#packet.pulse #pkt-inner{ animation:pktpulse .7s ease-in-out; }
+@keyframes pktpulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.45);} }
+
+/* ===================== bottom dock ===================== */
+#dock{ position:absolute; top:57.4cqh; left:2.6cqw; right:2.6cqw; height:37.8cqh; z-index:4;
+  transition:opacity .4s ease; }
+.pane-wrap{ position:absolute; inset:0; opacity:1; transition:opacity .28s ease, transform .28s ease; }
+.pane-wrap.gone{ opacity:0; transform:translateY(1.2cqh); pointer-events:none; }
+
+/* --- dock panels (1-3, laid out from the PANELS config) --- */
+#sim{ height:100%; display:grid; gap:1.1cqw; }
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:1.2cqh;
+  display:flex; flex-direction:column; overflow:hidden; min-width:0;
+  box-shadow:0 24px 60px -28px rgba(0,0,0,.75); }
+.panel .phead{ flex:none; display:flex; align-items:center; gap:1cqw; padding:1.1cqh 1.3cqw;
+  background:var(--surface2); border-bottom:1px solid var(--line); }
+.panel .phead .d{ width:1.15cqh; height:1.15cqh; border-radius:50%; flex:none; }
+.panel .phead .d.r{ background:#ff5f57; } .panel .phead .d.y{ background:#febc2e; } .panel .phead .d.g{ background:#28c840; }
+.panel .phead .pt{ font-family:var(--mono); font-size:1.4cqh; color:var(--tx3); letter-spacing:.08em;
+  line-height:1.35; }
+.panel .phead .pt b{ color:var(--tx2); font-weight:600; }
+.panel .pbody{ flex:1; overflow-y:auto; padding:1.3cqh 1.2cqw; scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+
+/* chat */
+.p-chat .pbody{ display:flex; flex-direction:column; gap:1cqh; }
+.msg{ max-width:94%; font-size:1.9cqh; line-height:1.42; font-weight:300; color:var(--tx2);
+  animation:rowin .3s ease both; }
+.msg.user{ align-self:flex-end; background:rgba(80,230,255,.07); border:1px solid rgba(80,230,255,.25);
+  border-radius:1cqh 1cqh .25cqh 1cqh; padding:1cqh 1.2cqw; color:var(--tx); }
+.msg.agent{ align-self:flex-start; background:var(--surface2); border:1px solid var(--line);
+  border-radius:1cqh 1cqh 1cqh .25cqh; padding:1cqh 1.2cqw; }
+.msg.agent b{ color:var(--tx); font-weight:600; }
+.msg.sys{ align-self:flex-start; font-family:var(--mono); font-size:1.4cqh; color:var(--tx3);
+  padding:.1cqh .4cqw; }
+.msg.sys .ok{ color:var(--ms-green); }
+.msg .cursor{ display:inline-block; width:.9ch; height:1.7cqh; background:var(--az-bright);
+  transform:translateY(.3cqh); animation:blink 1.05s steps(1) infinite; }
+@keyframes blink{ 0%,50%{ opacity:1 } 50.01%,100%{ opacity:0 } }
+@keyframes rowin{ from{ opacity:0; transform:translateY(.8cqh);} to{ opacity:1; transform:none;} }
+
+/* inspector */
+.p-insp .pbody{ font-family:var(--mono); }
+.itone{ display:inline-block; font-size:1.15cqh; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+  border-radius:.5cqh; padding:.25cqh .8cqw; margin-bottom:1cqh; }
+.itone.warn{ color:var(--ms-yellow); background:rgba(255,185,0,.08); border:1px solid rgba(255,185,0,.35); }
+.itone.safe{ color:var(--ms-green); background:rgba(127,186,0,.08); border:1px solid rgba(127,186,0,.35); }
+.itone.info{ color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.3); }
+.itone.note{ color:var(--tx2); background:rgba(255,255,255,.04); border:1px solid var(--line); }
+.ititle{ font-family:var(--sans); font-size:1.95cqh; font-weight:600; color:var(--tx); margin-bottom:1cqh; }
+.irow{ font-size:1.66cqh; line-height:1.58; color:var(--tx2); white-space:pre-wrap; word-break:break-word; }
+.irow.strike{ text-decoration:line-through; text-decoration-color:rgba(242,80,34,.75);
+  text-decoration-thickness:.18cqh; color:var(--tx3); }
+.irow .k{ color:var(--az-bright); }
+.irow .ok{ color:var(--ms-green); }
+.irow .warn{ color:var(--ms-yellow); }
+
+/* mapping rows: what the agent held -> which list -> what it could pick.
+   A grid so the three parts line up in columns; reading down a column is the point. */
+.isec{ font-family:var(--sans); font-size:1.12cqh; text-transform:uppercase; letter-spacing:.15em;
+  color:var(--tx3); font-weight:600; margin:.75cqh 0 .32cqh; }
+.isec:first-child{ margin-top:0; }
+.imap{ display:grid; grid-template-columns:minmax(0,.78fr) minmax(0,.58fr) minmax(0,1.36fr);
+  gap:0 .7cqw; align-items:baseline; font-size:1.5cqh; line-height:1.34; padding:.09cqh 0; }
+.imap .mraw{ color:var(--tx2); word-break:break-word; }
+.imap .marr{ color:var(--tx3); margin-right:.28cqw; }
+.imap .mfield{ color:var(--tx3); word-break:break-word; }
+.imap .mval{ color:var(--az-bright); word-break:break-word; }
+.imap .mval i{ color:var(--tx3); font-style:normal; font-size:.86em; }
+.imap.ihead{ font-family:var(--sans); font-size:1.02cqh; text-transform:uppercase; letter-spacing:.12em;
+  font-weight:600; color:var(--tx3); border-bottom:1px solid var(--line-soft);
+  padding-bottom:.3cqh; margin-bottom:.34cqh; }
+.inote{ font-family:var(--sans); font-size:1.45cqh; color:var(--tx3); font-weight:300; margin-top:1cqh;
+  font-style:italic; }
+.p-insp .pbody.swap{ animation:inspswap .32s ease; }
+@keyframes inspswap{ from{ opacity:0; transform:translateY(.7cqh);} to{ opacity:1; transform:none;} }
+
+/* audit */
+.p-log .phead .pt b{ color:var(--violet); }
+.arow{ display:flex; gap:.9cqw; align-items:flex-start; padding:.85cqh 0; border-bottom:1px solid var(--line-soft);
+  animation:rowin .3s ease both; }
+.arow:last-child{ border-bottom:none; }
+.arow .ts{ font-family:var(--mono); font-size:1.25cqh; color:var(--tx3); flex:none; padding-top:.25cqh; }
+.arow .abadge{ font-family:var(--mono); font-size:1.05cqh; font-weight:600; letter-spacing:.14em; flex:none;
+  border-radius:.45cqh; padding:.2cqh .6cqw; margin-top:.1cqh; }
+.arow .abadge.purple{ color:var(--violet); background:rgba(189,164,255,.09); border:1px solid rgba(189,164,255,.35); }
+.arow .abadge.green{ color:var(--ms-green); background:rgba(127,186,0,.08); border:1px solid rgba(127,186,0,.35); }
+.arow .abadge.az{ color:var(--az-bright); background:rgba(80,230,255,.08); border:1px solid rgba(80,230,255,.3); }
+.arow .atxt{ font-family:var(--mono); font-size:1.45cqh; line-height:1.52; color:var(--tx2); word-break:break-word; }
+.arow .atxt b{ color:var(--tx); font-weight:600; }
+.aempty{ font-size:1.5cqh; color:var(--tx3); font-style:italic; font-weight:300; padding:.6cqh 0; }
+
+/* code — a mono source/payload block, replaced each step */
+.p-code .pbody{ font-family:var(--mono); }
+.p-code .phead .pt b{ color:var(--az-bright); }
+.ctitle{ font-family:var(--sans); font-size:1.6cqh; font-weight:600; color:var(--tx2);
+  letter-spacing:.04em; margin-bottom:.9cqh; }
+.cline{ display:flex; gap:.7cqw; align-items:baseline; font-size:1.5cqh; line-height:1.62;
+  color:var(--tx2); white-space:pre-wrap; word-break:break-word; padding-left:.55cqw;
+  margin-left:-.55cqw; border-left:.22cqh solid transparent; }
+.cline .cn{ flex:none; min-width:2.2ch; text-align:right; color:var(--tx3); font-size:1.25cqh;
+  user-select:none; }
+.cline .ct{ min-width:0; }
+.cline .ct .k{ color:var(--az-bright); }
+.cline .ct .ok{ color:var(--ms-green); }
+.cline .ct .warn{ color:var(--ms-yellow); }
+.cline .ct .bad{ color:var(--ms-red); }
+.cline .ct .cm{ color:var(--tx3); font-style:italic; }
+.cline.hl{ background:rgba(80,230,255,.06); border-left-color:var(--az); color:var(--tx); }
+.cline.add{ background:rgba(127,186,0,.06); border-left-color:var(--ms-green); }
+.cline.del{ background:rgba(242,80,34,.06); border-left-color:var(--ms-red); color:var(--tx3);
+  text-decoration:line-through; text-decoration-color:rgba(242,80,34,.6); }
+.p-code .pbody.swap{ animation:inspswap .32s ease; }
+
+/* metrics — label / value / delta rows, replaced each step */
+.p-metrics .phead .pt b{ color:var(--ms-green); }
+.mrow{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:0 .8cqw; align-items:baseline;
+  padding:.85cqh 0; border-bottom:1px solid var(--line-soft); animation:rowin .3s ease both; }
+.mrow:last-child{ border-bottom:none; }
+.mrow .mlabel{ font-family:var(--sans); font-size:1.5cqh; font-weight:300; color:var(--tx2);
+  word-break:break-word; }
+.mrow .mvalue{ font-family:var(--mono); font-size:1.95cqh; font-weight:600; color:var(--tx);
+  letter-spacing:-.01em; white-space:nowrap; }
+.mrow .mdelta{ font-family:var(--mono); font-size:1.2cqh; font-weight:600; letter-spacing:.1em;
+  border-radius:.45cqh; padding:.18cqh .55cqw; white-space:nowrap; color:var(--tx3);
+  background:rgba(255,255,255,.04); border:1px solid var(--line); }
+.mrow.up .mvalue{ color:var(--ms-green); }
+.mrow.up .mdelta{ color:var(--ms-green); background:rgba(127,186,0,.08); border-color:rgba(127,186,0,.35); }
+.mrow.down .mvalue{ color:var(--ms-red); }
+.mrow.down .mdelta{ color:var(--ms-red); background:rgba(242,80,34,.08); border-color:rgba(242,80,34,.35); }
+.mrow.warn .mvalue{ color:var(--ms-yellow); }
+.mrow.warn .mdelta{ color:var(--ms-yellow); background:rgba(255,185,0,.08); border-color:rgba(255,185,0,.35); }
+.mrow.az .mvalue{ color:var(--az-bright); }
+.mrow.az .mdelta{ color:var(--az-bright); background:rgba(80,230,255,.08); border-color:rgba(80,230,255,.3); }
+.p-metrics .pbody.swap{ animation:inspswap .32s ease; }
+
+/* ===================== bottom chrome ===================== */
+.chrome-bot{ position:absolute; left:2.6cqw; right:2.6cqw; bottom:.9cqh; z-index:5;
+  display:flex; align-items:center; gap:1.6cqw; transition:opacity .4s ease; }
+.progress{ flex:1; display:flex; gap:.55cqw; align-items:center; }
+.seg{ height:.34cqh; flex:1; background:#2a2a34; border-radius:2px; cursor:pointer;
+  transition:background .4s ease, transform .25s ease; }
+.seg:hover{ transform:scaleY(2.4); }
+.seg.past{ background:#2c6f95; }
+.seg.cur{ background:var(--accent); box-shadow:0 0 10px rgba(80,230,255,.5); }
+.counter{ font-family:var(--mono); font-size:var(--fs-small); color:var(--tx2);
+  letter-spacing:.1em; white-space:nowrap; }
+.counter b{ color:var(--az-bright); font-weight:600; }
+.autop{ font-family:var(--sans); font-size:1.4cqh; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--tx3); background:none; border:1px solid var(--line); border-radius:10cqh;
+  padding:.6cqh 1.4cqw; cursor:pointer; transition:all .25s ease; display:none; white-space:nowrap; }
+.autop.vis{ display:block; }
+.autop.on{ color:var(--ms-green); border-color:rgba(127,186,0,.5); }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .glow{ animation:none !important; }
+  .edge.flowing{ animation:none !important; }
+  .node.active .shell{ animation:none !important; box-shadow:0 0 16px -2px rgba(80,230,255,.6); }
+  .msg,.arow,.mrow{ animation:none !important; }
+  .p-insp .pbody.swap, .p-code .pbody.swap, .p-metrics .pbody.swap{ animation:none !important; }
+  .msg .cursor{ animation:none; }
+  #packet.pulse #pkt-inner{ animation:none; }
+}
+</style>
+</head>
+<body>
+<div id="stage" class="intro" role="application" aria-label="Interactive walkthrough">
+
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+
+  <!-- ============ diagram ============ -->
+  <div id="canvas">
+    <!-- SCENE:BEGIN — generated by scripts/new_sim.py --scene. Do not hand-edit. -->
+    <svg id="flow" viewBox="0 -16 1272 468" preserveAspectRatio="xMidYMid meet" aria-label="Delegated call to the Microsoft Graph Security API - sign-in, consent, scp">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(80,230,255,.4)"/>
+        </marker>
+        <marker id="arr-p" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(189,164,255,.45)"/>
+        </marker>
+        <marker id="arr-r" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(242,80,34,.55)"/>
+        </marker>
+      </defs>
+
+      <!-- ===== zones ===== -->
+      <g class="zone" id="z-client">
+        <rect class="zbg" x="8" y="14" width="233.8" height="358" rx="12"/>
+        <text class="zlabel" x="24" y="40">The user</text>
+        <text class="zsub" x="24" y="56">PowerShell 7 + browser</text>
+      </g>
+      <g class="zone z-blue" id="z-entra">
+        <rect class="zbg" x="253.8" y="14" width="376.2" height="358" rx="12"/>
+        <text class="zlabel" x="269.8" y="40">Microsoft Entra ID</text>
+        <text class="zsub" x="269.8" y="56">login.microsoftonline.{com|us}</text>
+      </g>
+      <g class="zone z-green" id="z-graph">
+        <rect class="zbg" x="642" y="14" width="376.2" height="358" rx="12"/>
+        <text class="zlabel" x="658" y="40">Microsoft Graph</text>
+        <text class="zsub" x="658" y="56">{msgraph_host}/v1.0 &middot; the control</text>
+      </g>
+      <g class="zone z-az" id="z-xdr">
+        <rect class="zbg" x="1030.2" y="14" width="233.8" height="358" rx="12"/>
+        <text class="zlabel" x="1046.2" y="40">Defender XDR</text>
+        <text class="zsub" x="1046.2" y="56">advanced hunting</text>
+      </g>
+      <g class="zone z-purple extra-band" id="z-prereq">
+        <rect class="zbg" x="254" y="384" width="764" height="60" rx="12"/>
+        <text class="zlabel" x="270" y="410">Prerequisite</text>
+      </g>
+
+      <!-- ===== boundary lines ===== -->
+      <path class="bline b1" id="bnd1" d="M 636 -12 L 636 372"/>
+
+      <!-- ===== edges (authored in travel direction) ===== -->
+      <path class="edge" id="e1" d="M 84.6 166 L 84 142" marker-end="url(#arr)"/>
+      <path class="edge" id="e2" d="M 174 104 L 270 108" marker-end="url(#arr)"/>
+      <path class="edge bad" id="e-need" d="M 290 146 C 262 146, 262 156, 262 176 L 262 292 C 262 300, 268 305, 310 305" marker-end="url(#arr-r)"/>
+      <path class="edge" id="e3" d="M 270 134.6 C 245.9 134.6, 250.1 180.4, 226 180.4" marker-end="url(#arr)"/>
+      <path class="edge" id="e4" d="M 226 214 C 250 214, 246 206.8, 270 206.8" marker-end="url(#arr)"/>
+      <path class="edge" id="e5" d="M 270 248.2 L 226 247.6" marker-end="url(#arr)"/>
+      <path class="edge" id="e6" d="M 226 258 C 236 258, 236 262, 236 272 L 236 332 C 236 342, 242 346, 252 346 L 968 346 C 976 346, 980 342, 980 332 L 980 226" marker-end="url(#arr)"/>
+      <path class="edge bad" id="e-403" d="M 830 226 L 830 280" marker-end="url(#arr-r)"/>
+      <path class="edge" id="e7" d="M 1002 148 L 1046 148" marker-end="url(#arr)"/>
+      <path class="edge" id="e8" d="M 1046 196 L 1002 196" marker-end="url(#arr)"/>
+      <path class="edge" id="e9" d="M 960 106 L 960 14 C 960 4, 954 0, 944 0 L 216 0 C 206 0, 200 4, 200 14 L 200 166" marker-end="url(#arr)"/>
+      <path class="edge" id="e10" d="M 125 262 L 125 290" marker-end="url(#arr)"/>
+
+      <!-- ===== step number badges ===== -->
+      <g class="snum" data-step="1" transform="translate(125,154)"><circle r="11"/><text>1</text></g>
+      <g class="snum" data-step="2" transform="translate(60.3,154)"><circle r="11"/><text>2</text></g>
+      <g class="snum" data-step="3" transform="translate(222,90)"><circle r="11"/><text>3</text></g>
+      <g class="snum" data-step="4" transform="translate(606,108)"><circle r="11"/><text>4</text></g>
+      <g class="snum" data-step="5" transform="translate(248,157.5)"><circle r="11"/><text>5</text></g>
+      <g class="snum" data-step="6" transform="translate(248,210.4)"><circle r="11"/><text>6</text></g>
+      <g class="snum" data-step="7" transform="translate(248,263.9)"><circle r="11"/><text>7</text></g>
+      <g class="snum" data-step="8" transform="translate(600,346)"><circle r="11"/><text>8</text></g>
+      <g class="snum" data-step="9" transform="translate(830,90)"><circle r="11"/><text>9</text></g>
+      <g class="snum" data-step="10" transform="translate(1024,132)"><circle r="12"/><text>10</text></g>
+      <g class="snum" data-step="11" transform="translate(1024,212)"><circle r="12"/><text>11</text></g>
+      <g class="snum" data-step="12" transform="translate(560,0)"><circle r="12"/><text>12</text></g>
+      <g class="snum" data-step="13" transform="translate(147,276)"><circle r="12"/><text>13</text></g>
+
+      <!-- ===== nodes ===== -->
+      <g class="node round" id="n-browser" data-node tabindex="0" role="button" aria-label="Browser">
+        <foreignObject x="24" y="66" width="150" height="76">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">Browser</span>
+            <span class="nsub">sign-in &middot; MFA</span>
+            <span class="nsub"><b>consent prompt</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node round" id="n-pwsh" data-node tabindex="0" role="button" aria-label="PowerShell 7">
+        <foreignObject x="24" y="166" width="202" height="96">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">PowerShell 7</span>
+            <span class="nsub">Connect-MgGraph (MSAL)</span>
+            <span class="nsub">acts <b>as the user</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-purple" id="n-file" data-node tabindex="0" role="button" aria-label="SignIns-Last24h.json">
+        <foreignObject x="24" y="290" width="202" height="48">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname mono">SignIns-Last24h.json</span>
+            <span class="nsub">ConvertTo-Json -Depth 10</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-blue" id="n-authz" data-node tabindex="0" role="button" aria-label="/oauth2/v2.0/authorize">
+        <foreignObject x="270" y="70" width="320" height="76">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">AUTHORIZE ENDPOINT</span>
+            <span class="nname mono">/oauth2/v2.0/authorize</span>
+            <span class="nsub">sign-in &middot; MFA &middot; <b>consent check</b></span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-blue" id="n-token" data-node tabindex="0" role="button" aria-label="/oauth2/v2.0/token">
+        <foreignObject x="270" y="170" width="320" height="92">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">TOKEN ENDPOINT</span>
+            <span class="nname mono">/oauth2/v2.0/token</span>
+            <span class="nsub">code + PKCE &rarr; JWT with <b>scp</b></span>
+            <span class="nsub">refresh token for the session</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-red round" id="n-needadmin" data-node tabindex="0" role="button" aria-label="Need admin approval">
+        <foreignObject x="310" y="282" width="240" height="46">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">Need admin approval</span>
+            <span class="nsub">AADSTS65001 &middot; no consent, no code</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-green" id="n-graph" data-node tabindex="0" role="button" aria-label="/security/runHuntingQuery">
+        <foreignObject x="658" y="106" width="344" height="120">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">SECURITY API</span>
+            <span class="nname mono">/security/runHuntingQuery</span>
+            <span class="nsub">validates signature &middot; audience &middot; expiry</span>
+            <span class="nsub"><b>scp</b> must contain ThreatHunting.Read.All</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-red round" id="n-403" data-node tabindex="0" role="button" aria-label="403 · Forbidden">
+        <foreignObject x="698" y="280" width="264" height="48">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname">403 &middot; Forbidden</span>
+            <span class="nsub">no scope, or the user may not see this data</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node" id="n-hunt" data-node tabindex="0" role="button" aria-label="EntraIdSignInEvents">
+        <foreignObject x="1046" y="106" width="202" height="120">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="ntag">ADVANCED HUNTING</span>
+            <span class="nname mono">EntraIdSignInEvents</span>
+            <span class="nsub">runs the KQL</span>
+            <span class="nsub">sign-ins &middot; last 24 h</span>
+          </div>
+        </foreignObject>
+      </g>
+      <g class="node n-purple extra-band" id="n-prereq" data-node tabindex="0" role="button" aria-label="ThreatHunting.Read.All (Delegated)">
+        <foreignObject x="420" y="391" width="582" height="46">
+          <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
+            <span class="nname mono">ThreatHunting.Read.All (Delegated)</span>
+            <span class="nsub">admin consent required &middot; the app acts <b>as the user</b> &mdash; never sees more than the user could</span>
+          </div>
+        </foreignObject>
+      </g>
+
+      <!-- ===== packet ===== -->
+      <g id="packet"><g id="pkt-inner"><rect x="-22" y="-11" width="44" height="22" rx="7"/><text id="pkt-label">REQ</text></g></g>
+    </svg>
+    <!-- SCENE:END -->
+  </div>
+
+  <!-- ============ bottom dock ============ -->
+  <div id="dock">
+    <!-- panels are built from the PANELS config in the engine -->
+    <div class="pane-wrap" id="wrap-sim">
+      <div id="sim"></div>
+    </div>
+  </div>
+
+  <!-- ============ intro action ============ -->
+  <button id="startbtn"><span class="tri">&#9654;</span> Start simulation</button>
+
+  <!-- ============ bottom chrome ============ -->
+  <div class="chrome-bot">
+    <a class="deckbtn" id="deckbtn" href="#" title="Back to the slide deck" hidden>&#9666; Slides</a>
+    <div class="modes">
+      <button id="m-sim" class="on"><span class="tri">&#9654;</span> Run it</button>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+    <button class="autop vis" id="autop" aria-pressed="false">Autoplay: off</button>
+    <div class="counter"><b id="cur">&mdash;</b> / <span id="tot">0</span></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   CONFIG — author this.
+   ============================================================ */
+const CONFIG = {
+  runLabel:   'Run the call',
+  startLabel: 'Start simulation',
+  deck:       {href:'REST-APIs-JSON-Graph-Security-API.html#14', label:'Slides'},
+  clock:      { start:'09:45:00', step:4 },
+  autoplayMs: 6500,
+  readyText:  'Ready. Press <b>Run the call</b> to start &mdash; then <b>Space</b> to step through.'
+};
+
+/* ============================================================
+   PANELS — 1 to 3 of them. type picks the renderer; weight is the
+   grid share; field is the STEPS key it reads (defaults to type).
+     chat      append  · typed messages, {who:'user'|'agent'|'sys', t, type}
+     inspector replace · toned payload rows, {tone:note|safe|warn|info, toneLabel, title, rows, note}
+     log       append  · timestamped records, {badge,tone,t}
+     code      replace · mono block, {title,numbers,lines:[{t,hl,add,del,n}]}
+     metrics   replace · label/value/delta rows, {label,value,delta,tone}
+   ============================================================ */
+const PANELS = [
+  {id:'chat', type:'chat', weight:26, title:'pwsh + browser', sub:'what the user sees', empty:''},
+  {id:'insp', type:'inspector', weight:40, title:'ON THE WIRE', sub:'request / response, right now'},
+  {id:'code', type:'code', weight:34, title:'POWERSHELL 7', sub:'Graph PowerShell SDK', empty:'The code appears as each call is made.'}
+];
+
+/* ============================================================
+   THE STEPS ARRAY — single source of truth for the run.
+   Every panel and every bit of diagram state renders from this.
+   Never hard-code step content anywhere else.
+
+   Per step:
+     n         1-based step number (must match the scene badge)
+     node      id of the node this step lands on            (required)
+     edge      id of the edge the packet flies              (null = pulse in place)
+     zones     zone ids to hold lit                         (required, may be [])
+     tone      'az' | 'safe' | 'warn'  — packet/edge/node color
+     pkt       short packet label, 3-4 characters
+     dur       packet flight time in ms
+     hot       optional boundary id to light for this step
+     beat      optional {fail, pass, boundary} flash beat after the flight
+     chatAfter true = play chat messages after the flight, not before
+     <field>   one key per panel: chat / inspector / log / code / metrics
+   ============================================================ */
+const STEPS = [
+  { n:1, node:'n-pwsh', edge:null, zones:['z-client'], tone:'az', pkt:'RUN', dur:600,
+    chat:[{who:'user', type:true, t:'.\\Invoke-HuntingQuery.ps1 -AuthMode Delegated -Hours 24'},
+      {who:'sys', t:'Endpoints : OpenID discovery &rarr; Global &middot; graph.microsoft.com'}],
+    inspector:{tone:'note', toneLabel:'DELEGATED · SETUP', title:'What Connect-MgGraph is about to ask for',
+      rows:[
+      {sec:'the client'},
+      {t:'Microsoft Graph Command Line Tools &mdash; the SDK\'s public client (no secret)'},
+      {t:'redirect_uri : http://localhost:&lt;port&gt; &mdash; MSAL listens there'},
+      {sec:'the scopes'},
+      {t:'ThreatHunting.Read.All', k:true},
+      {t:'openid &middot; profile &middot; offline_access (added by MSAL)'},
+      {sec:'the environment'},
+      {t:'Global &mdash; from -Environment or discovery; re-read from Get-MgContext after sign-in'}],
+      note:'Delegated = the app acts as the signed-in user. It will never see more than that user could.'},
+    code:{title:'Invoke-HuntingQuery.ps1 · -AuthMode Delegated', numbers:false, lines:[
+      {t:'Import-Module Microsoft.Graph.Authentication'},
+      {t:'$connect = @{ Scopes = \'ThreatHunting.Read.All\'; Environment = $ep.MgEnvironment; NoWelcome = $true }', hl:true},
+      {t:'if ($TenantId) { $connect.TenantId = $TenantId }'},
+      {t:'Connect-MgGraph @connect', hl:true},
+      {t:'<span class="cm"># -Scopes = the delegated permissions to request · -Environment Global | USGov | USGovDoD</span>'}]}
+  },
+
+  { n:2, node:'n-browser', edge:'e1', zones:['z-client'], tone:'az', pkt:'AUTH', dur:500,
+    chat:[{who:'sys', t:'Opening the browser for sign-in&hellip;'}],
+    inspector:{tone:'info', toneLabel:'MSAL · AUTHORIZATION REQUEST', title:'A URL, parameter by parameter',
+      rows:[
+      {t:'GET https://login.microsoftonline.com/contoso.onmicrosoft.com/oauth2/v2.0/authorize?', k:true},
+      {head:true, h1:'parameter', h2:'means', h3:'value'},
+      {from:'client_id', field:'which app', to:'Graph Command Line Tools'},
+      {from:'response_type', field:'what back', to:'code'},
+      {from:'redirect_uri', field:'where', to:'http://localhost:53242'},
+      {from:'scope', field:'how much', to:'ThreatHunting.Read.All openid profile offline_access'},
+      {from:'code_challenge', field:'PKCE', to:'S256 hash of a one-time verifier'}],
+      note:'Authorization code + PKCE: a public client proves possession without a secret.'},
+    code:{title:'under the hood', numbers:false, lines:[
+      {t:'<span class="cm"># MSAL (inside Connect-MgGraph) builds the URL and opens the default browser</span>'},
+      {t:'<span class="cm"># it also starts a loopback HTTP listener on http://localhost:<port></span>'},
+      {t:'Connect-MgGraph -Scopes \'ThreatHunting.Read.All\' -UseDeviceAuthentication', hl:true},
+      {t:'<span class="cm">#   ← the alternative when no browser is available (jump box): device code flow</span>'}]}
+  },
+
+  { n:3, node:'n-authz', edge:'e2', zones:['z-client', 'z-entra'], tone:'az', pkt:'GET', dur:700,
+    chat:[{who:'sys', t:'Sign in: alexw@contoso.com &middot; password &middot; Authenticator approved <span class="ok">&#10003;</span>'}],
+    inspector:{tone:'info', toneLabel:'ENTRA ID · SIGN-IN', title:'Who is this? Conditional Access decides how sure to be',
+      rows:[
+      {t:'user &nbsp;&nbsp;: alexw@contoso.com', k:true},
+      {t:'MFA &nbsp;&nbsp;&nbsp;: satisfied (Microsoft Authenticator)'},
+      {t:'device : compliant &middot; Conditional Access: policies applied'},
+      {t:'session : new sign-in event &mdash; this will itself be a row in EntraIdSignInEvents'}],
+      note:'Authentication is done. Authorization — may this app act for this user with that scope? — comes next.'},
+    code:{title:'nothing to write here', numbers:false, lines:[
+      {t:'<span class="cm"># the browser and Entra ID are talking; PowerShell is waiting on the loopback listener</span>'},
+      {t:'<span class="cm"># the sign-in you just did is the kind of event the query will return</span>'}]}
+  },
+
+  { n:4, node:'n-authz', edge:null, zones:['z-entra'], tone:'warn', pkt:'CONS', dur:500, beat:{fail:'n-needadmin', pass:'n-authz'},
+    chat:[{who:'sys', t:'<b>Permissions requested</b> &middot; Run hunting queries &middot; <span class="warn">Need admin approval</span>'},
+      {who:'sys', t:'admin signs in &rarr; &#9745; Consent on behalf of your organization &rarr; Accept'}],
+    inspector:{tone:'warn', toneLabel:'CONSENT CHECK', title:'Is there a grant for this app + this scope?',
+      rows:[
+      {t:'lookup : oauth2PermissionGrant where clientId = SDK app SP, resourceId = Microsoft Graph SP'},
+      {t:'ThreatHunting.Read.All &middot; admin consent required : <b>Yes</b>', html:true},
+      {t:'Alex is not an admin &rarr; prompt says Need admin approval (AADSTS65001) &rarr; no code', strike:true},
+      {sec:'how the grant gets there'},
+      {t:'an admin ticks Consent on behalf of your organization in this prompt', k:true},
+      {t:'or the adminconsent URL &middot; or Enterprise apps &rarr; Permissions &rarr; Grant admin consent'},
+      {t:'or POST /oauth2PermissionGrants { consentType: AllPrincipals, scope: ThreatHunting.Read.All }'}],
+      note:'Result object: oAuth2PermissionGrant. Once it exists, every user in the tenant signs in without a prompt.'},
+    code:{title:'the same grant, as a REST call (New-HuntingAppRegistration.ps1 -IncludeDelegatedScope)', numbers:false, lines:[
+      {t:'POST /v1.0/oauth2PermissionGrants', hl:true},
+      {t:'{ "clientId": "<client SP id>",'},
+      {t:'  "consentType": "AllPrincipals",', hl:true},
+      {t:'  "resourceId": "<Microsoft Graph SP id>",'},
+      {t:'  "scope": "ThreatHunting.Read.All" }', hl:true},
+      {t:'<span class="cm"># delegated consent = oauth2PermissionGrant · application consent = appRoleAssignment</span>'}]}
+  },
+
+  { n:5, node:'n-pwsh', edge:'e3', zones:['z-entra', 'z-client'], tone:'safe', pkt:'CODE', dur:800,
+    inspector:{tone:'safe', toneLabel:'302 · AUTHORIZATION CODE', title:'Back to localhost with a one-time code',
+      rows:[
+      {t:'HTTP 302 Found'},
+      {t:'Location: http://localhost:53242/?code=0.AXkA&hellip;&amp;state=&hellip;', k:true},
+      {t:'the browser follows the redirect &rarr; MSAL\'s loopback listener receives the code'},
+      {t:'code : single-use &middot; ~10 minutes &middot; bound to the PKCE verifier'}],
+      note:'The code is not a token. It is a claim ticket that only the holder of the PKCE verifier can redeem.'},
+    code:{title:'still MSAL', numbers:false, lines:[
+      {t:'<span class="cm"># loopback listener: GET /?code=…&state=… → \'Authentication complete. You can return to the application.\'</span>'},
+      {t:'<span class="cm"># MSAL now redeems the code — the next step</span>'}]}
+  },
+
+  { n:6, node:'n-token', edge:'e4', zones:['z-client', 'z-entra'], tone:'az', pkt:'POST', dur:700,
+    inspector:{tone:'info', toneLabel:'REQUEST · POST', title:'Redeem the code — no secret, a verifier instead',
+      rows:[
+      {t:'POST https://login.microsoftonline.com/contoso.onmicrosoft.com/oauth2/v2.0/token', k:true},
+      {t:'Content-Type: application/x-www-form-urlencoded'},
+      {t:'grant_type &nbsp;&nbsp;&nbsp;= authorization_code', k:true},
+      {t:'code &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0.AXkA&hellip;'},
+      {t:'redirect_uri = http://localhost:53242'},
+      {t:'code_verifier = the one-time PKCE secret MSAL generated at step 2', k:true},
+      {t:'client_id &nbsp;&nbsp;&nbsp;&nbsp;= Graph Command Line Tools &middot; scope = &hellip;'}],
+      note:'Compare the app-only simulator: same endpoint, grant_type client_credentials and a client_secret instead.'},
+    code:{title:'same endpoint as the app-only flow', numbers:false, lines:[
+      {t:'<span class="cm"># app-only (Invoke-RestMethod by hand):</span>'},
+      {t:'grant_type = \'client_credentials\'; client_secret = ***', hl:true},
+      {t:'<span class="cm"># delegated (MSAL does it for you):</span>'},
+      {t:'grant_type = \'authorization_code\'; code = ***; code_verifier = ***', hl:true}]}
+  },
+
+  { n:7, node:'n-pwsh', edge:'e5', zones:['z-entra', 'z-client'], tone:'safe', pkt:'JWT', dur:800, chatAfter:true,
+    chat:[{who:'sys', t:'Welcome to Microsoft Graph! &middot; Signed in as alexw@contoso.com &middot; scopes: ThreatHunting.Read.All'}],
+    inspector:{tone:'safe', toneLabel:'RESPONSE · 200 OK · JWT', title:'A token about a user — scp, not roles',
+      rows:[
+      {t:'{ "token_type": "Bearer", "expires_in": 4213, "access_token": "eyJ0eXAi&hellip;",'},
+      {t:'&nbsp;&nbsp;"refresh_token": "0.AXkA&hellip;" }  &larr; offline_access; MSAL caches it'},
+      {sec:'decoded at jwt.ms'},
+      {t:'aud &nbsp;: https://graph.microsoft.com'},
+      {t:'scp &nbsp;: "ThreatHunting.Read.All openid profile offline_access"', k:true},
+      {t:'upn &nbsp;: alexw@contoso.com &middot; oid &middot; tid &middot; amr : [ pwd, mfa ]', k:true}],
+      note:'Two identities in one token: the app (appid) and the user (upn/oid). Graph will check both.'},
+    code:{title:'the session', numbers:false, lines:[
+      {t:'$ctx = Get-MgContext', hl:true},
+      {t:'$ctx.AuthType<span class="cm">      # Delegated</span>'},
+      {t:'$ctx.Account<span class="cm">       # alexw@contoso.com</span>'},
+      {t:'$ctx.Scopes<span class="cm">        # ThreatHunting.Read.All, openid, profile, …</span>'},
+      {t:'$graphHost = (Get-MgEnvironment | Where-Object Name -eq $ctx.Environment).GraphEndpoint', hl:true},
+      {t:'<span class="cm"># the signed-in context is the authority on which cloud we are in</span>'}]}
+  },
+
+  { n:8, node:'n-graph', edge:'e6', zones:['z-client', 'z-graph'], tone:'safe', pkt:'POST', dur:1300, hot:'bnd1',
+    inspector:{tone:'safe', toneLabel:'REQUEST · POST · BEARER', title:'Invoke-MgGraphRequest — same request, token handled for you',
+      rows:[
+      {head:true, h1:'parameter', h2:'HTTP part', h3:'on the wire'},
+      {from:'-Method POST', field:'verb', to:'POST'},
+      {from:'-Uri $uri', field:'resource', to:'/v1.0/security/runHuntingQuery'},
+      {from:'(SDK adds it)', field:'header', to:'Authorization: Bearer eyJ0&hellip; (scp)'},
+      {from:'-ContentType', field:'header', to:'application/json; charset=utf-8'},
+      {from:'-Body $body', field:'body', to:'{ "Query": "EntraIdSignInEvents | &hellip;", "Timespan": "P1D" }'},
+      {from:'-OutputType PSObject', field:'(client)', to:'deserialize the JSON reply into objects'}],
+      note:'The wire is identical to the app-only call. Only the token — and who it speaks for — differs.'},
+    code:{title:'REST call · Graph', numbers:false, lines:[
+      {t:'$body = @{ Query = $kql; Timespan = \'P1D\' } | ConvertTo-Json'},
+      {t:'$response = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body `', hl:true},
+      {t:'    -ContentType \'application/json; charset=utf-8\' -OutputType PSObject', hl:true},
+      {t:'<span class="cm"># no -Authentication / -Token: MSAL attaches (and refreshes) the bearer token</span>'},
+      {t:'<span class="cm"># the SDK throws on any non-2xx — catch it to read the JSON error body</span>'}]}
+  },
+
+  { n:9, node:'n-graph', edge:null, zones:['z-graph'], tone:'safe', pkt:'AUTH', dur:500, hot:'bnd1', beat:{fail:'n-403', pass:'n-graph', boundary:'bnd1'},
+    inspector:{tone:'safe', toneLabel:'GRAPH · TWO CHECKS', title:'The app\'s scope AND the user\'s own access',
+      rows:[
+      {t:'signature <span class="ok">&#10003;</span> &mdash; signed by Entra ID for this tenant', html:true},
+      {t:'aud = Microsoft Graph <span class="ok">&#10003;</span>', html:true},
+      {t:'exp not passed <span class="ok">&#10003;</span>', html:true},
+      {t:'scp &ni; ThreatHunting.Read.All <span class="ok">&#10003;</span> &mdash; the app may ask', k:true},
+      {t:'alexw may see hunting data in Defender <span class="ok">&#10003;</span> &mdash; the user may see', k:true},
+      {t:'either missing &rarr; 403 Forbidden', strike:true}],
+      note:'Delegated access is the intersection: what the app was granted ∩ what the user is allowed. Never more.'},
+    code:{title:'why delegated is the safer default for people', numbers:false, lines:[
+      {t:'<span class="cm"># app-only token:  roles = [ThreatHunting.Read.All]  → tenant-wide, no user</span>'},
+      {t:'<span class="cm"># delegated token: scp = ThreatHunting.Read.All + upn → bounded by that user\'s RBAC</span>'},
+      {t:'try   { $response = Invoke-MgGraphRequest @call }', hl:true},
+      {t:'catch { $_.ErrorDetails.Message | ConvertFrom-Json | ConvertTo-Json -Depth 5 }', hl:true}]}
+  },
+
+  { n:10, node:'n-hunt', edge:'e7', zones:['z-graph', 'z-xdr'], tone:'az', pkt:'KQL', dur:600,
+    inspector:{tone:'info', toneLabel:'KQL · DISPATCHED', title:'The Query property runs as advanced hunting',
+      rows:[
+      {t:'EntraIdSignInEvents', k:true},
+      {t:'| where Timestamp &gt; ago(24h)'},
+      {t:'| where ErrorCode == 0'},
+      {t:'| summarize LastSignIn = max(Timestamp), SignInCount = count(),'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apps = make_set(Application, 5)'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by AccountUpn, AccountDisplayName'},
+      {t:'| order by LastSignIn desc'}],
+      note:'Same query, same tables — now evaluated with Alex\'s data-access boundaries applied.'},
+    code:{title:'SignIns-Last24h.kql', numbers:false, lines:[
+      {t:'<span class="cm">// every user who signed in successfully during the last 24 h — one row per account</span>'},
+      {t:'<span class="k">EntraIdSignInEvents</span><span class="cm">                      // Defender XDR table · Entra ID P2</span>', hl:true},
+      {t:'| where Timestamp &gt; ago(24h)'},
+      {t:'| where ErrorCode == 0<span class="cm">                     // 0 = success</span>'},
+      {t:'| summarize LastSignIn  = max(Timestamp),', hl:true},
+      {t:'            SignInCount = count(),', hl:true},
+      {t:'            Apps        = make_set(Application, 5)<span class="cm">   // → JSON array in each row</span>', hl:true},
+      {t:'          by AccountUpn, AccountDisplayName', hl:true},
+      {t:'| order by LastSignIn desc'}]}
+  },
+
+  { n:11, node:'n-graph', edge:'e8', zones:['z-xdr', 'z-graph'], tone:'az', pkt:'ROWS', dur:600,
+    inspector:{tone:'info', toneLabel:'RESULT SET', title:'A table turns into JSON',
+      rows:[
+      {t:'schema &nbsp;: 5 columns &mdash; AccountUpn, AccountDisplayName, LastSignIn, SignInCount, Apps'},
+      {t:'results : 27 rows &mdash; one object per user &mdash; Alex\'s own sign-in from step 3 is among them', k:true},
+      {t:'Apps is dynamic &rarr; a JSON array inside each row'}],
+      note:'Columns become schema[]; rows become results[].'},
+    code:{title:'response shape', numbers:false, lines:[
+      {t:'$response.schema  | Format-Table name, type', hl:true},
+      {t:'$response.results.Count<span class="cm">        # 27</span>', hl:true},
+      {t:'<span class="cm"># -OutputType PSObject gave us [pscustomobject]s, not a hashtable</span>'}]}
+  },
+
+  { n:12, node:'n-pwsh', edge:'e9', zones:['z-graph', 'z-client'], tone:'az', pkt:'200', dur:1300, chatAfter:true,
+    chat:[{who:'sys', t:'HTTP 200 &middot; 27 row(s)'}],
+    inspector:{tone:'note', toneLabel:'RESPONSE · 200 OK', title:'huntingQueryResults — identical shape to the app-only call',
+      rows:[
+      {t:'request-id: 3f9c1a2e-7b44-4d0e-9c21-5a6f0e8d1b77 &middot; Content-Type: application/json'},
+      {t:'{'},
+      {t:'&nbsp;&nbsp;"@odata.context": "&hellip;#microsoft.graph.security.huntingQueryResults",'},
+      {t:'&nbsp;&nbsp;"schema": [ { "name": "AccountUpn", "type": "String" }, { "name": "Apps", "type": "Dynamic" }, &hellip; ],', k:true},
+      {t:'&nbsp;&nbsp;"results": [', k:true},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;{ "AccountUpn": "adelev@contoso.com", "LastSignIn": "2026-09-03T13:02:41Z",'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"SignInCount": 6, "Apps": [ "Outlook", "Teams" ] },'},
+      {t:'&nbsp;&nbsp;&nbsp;&nbsp;{ "AccountUpn": "alexw@contoso.com", &hellip; }, &hellip; 27 rows ]'},
+      {t:'}'}],
+      note:'Same JSON either way. The permission model changed who could ask — not what comes back.'},
+    code:{title:'first look', numbers:false, lines:[
+      {t:'$response.results | Select-Object -First 5 |', hl:true},
+      {t:'    Format-Table AccountUpn, LastSignIn, SignInCount, Apps', hl:true},
+      {t:'<span class="cm"># dot notation all the way down: $response.results[0].Apps[1] → Teams</span>'}]}
+  },
+
+  { n:13, node:'n-file', edge:'e10', zones:['z-client'], tone:'az', pkt:'JSON', dur:600, chatAfter:true,
+    chat:[{who:'sys', t:'Saved -&gt; .\\SignIns-Last24h-20260903-0946.json'},
+      {who:'agent', type:true, t:'Done &mdash; as <b>Alex</b>, not as an app. Disconnect-MgGraph ends the session and clears the cached token.'}],
+    inspector:{tone:'note', toneLabel:'FILE · JSON', title:'Objects → text → disk, nesting intact',
+      rows:[
+      {t:'$response | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8', k:true},
+      {sec:'what is in the file — slide 8, for real'},
+      {t:'depth 1 &middot; object &nbsp;{ @odata.context, schema, results }'},
+      {t:'depth 2 &middot; schema[] and results[] &mdash; <b>arrays of objects</b>', html:true},
+      {t:'depth 3 &middot; results[0].Apps[] &mdash; an <b>array inside an object</b>', html:true},
+      {t:'default -Depth 2 would flatten Apps to a string', strike:true}],
+      note:'Two runs, one file format. Show them side by side in VS Code — only the sign-in story differed.'},
+    code:{title:'wrap up', numbers:false, lines:[
+      {t:'$response | ConvertTo-Json -Depth 10 | Set-Content -Path $path -Encoding utf8', hl:true},
+      {t:'Disconnect-MgGraph<span class="cm">     # clears the cached token for this context scope</span>', hl:true},
+      {t:'<span class="cm"># -ContextScope Process on Connect-MgGraph would have kept the sign-in to this session only</span>'}]}
+  },
+];
+
+/* Optional: extra node -> step mappings, for nodes that are not the
+   landing node of any step but should still be clickable.
+   e.g. { 'n-reject':[1] }  (0-based step indexes) */
+const NODE_STEPS_EXTRA = {'n-needadmin':[3], 'n-403':[8], 'n-prereq':[3]};
+
+/* ============================================================
+   ==================  ENGINE  —  DO NOT EDIT  ================
+   ============================================================ */
+const N = STEPS.length;
+
+/* ---- panel plumbing ---- */
+const PANEL_DEFS = {
+  chat:      { cls:'p-chat',    field:'chat',      mode:'append',  dots:true,  live:true  },
+  inspector: { cls:'p-insp',    field:'inspector', mode:'replace', dots:false, live:false },
+  log:       { cls:'p-log',     field:'log',       mode:'append',  dots:false, live:true  },
+  code:      { cls:'p-code',    field:'code',      mode:'replace', dots:false, live:false },
+  metrics:   { cls:'p-metrics', field:'metrics',   mode:'replace', dots:false, live:false }
+};
+
+const sim = $('sim');
+sim.style.gridTemplateColumns = PANELS.map(p => (p.weight||1)+'fr').join(' ');
+PANELS.forEach(p => {
+  const def = PANEL_DEFS[p.type];
+  if(!def){ console.error('unknown panel type: '+p.type); return; }
+  p._def = def;
+  p._field = p.field || def.field;
+  const el = document.createElement('div');
+  el.className = 'panel ' + def.cls;
+  el.id = 'panel-' + p.id;
+  let head = def.dots ? '<span class="d r"></span><span class="d y"></span><span class="d g"></span>' : '';
+  head += '<span class="pt">' + (p.title||'') + (p.sub ? ' &middot; <b>'+p.sub+'</b>' : '') + '</span>';
+  el.innerHTML = '<div class="phead">'+head+'</div>'
+               + '<div class="pbody"'+(def.live?' aria-live="polite"':'')+'></div>';
+  sim.appendChild(el);
+  p._body = el.querySelector('.pbody');
+});
+const livePanels = PANELS.filter(p => p._def);
+
+/* ---- load-time self-check ---- */
+console.assert(N > 0, 'STEPS must not be empty');
+STEPS.forEach((s,i) => {
+  console.assert(s.n === i+1, 'STEPS['+i+'].n should be '+(i+1));
+  console.assert(document.getElementById(s.node), 'missing node '+s.node);
+  if(s.edge) console.assert(document.getElementById(s.edge), 'missing edge '+s.edge);
+  (s.zones||[]).forEach(z => console.assert(document.getElementById(z), 'missing zone '+z));
+});
+
+/* clicking a node opens its first step; step badges do the same */
+const NODE_STEPS = {};
+STEPS.forEach((s,i) => { (NODE_STEPS[s.node] = NODE_STEPS[s.node]||[]).push(i); });
+Object.keys(NODE_STEPS_EXTRA).forEach(k => { NODE_STEPS[k] = NODE_STEPS_EXTRA[k]; });
+
+/* ============================================================
+   shared rendering
+   ============================================================ */
+const flow = $('flow'), packet = $('packet'), pktLabel = $('pkt-label');
+const allNodes = Array.from(flow.querySelectorAll('.node'));
+const allEdges = Array.from(flow.querySelectorAll('.edge'));
+const allZones = Array.from(flow.querySelectorAll('.zone'));
+const allNums  = Array.from(flow.querySelectorAll('.snum'));
+const allBnds  = Array.from(flow.querySelectorAll('.bline'));
+
+function nodeCenter(id){
+  const fo = document.getElementById(id).querySelector('foreignObject');
+  return { x:+fo.getAttribute('x') + fo.getAttribute('width')/2,
+           y:+fo.getAttribute('y') + fo.getAttribute('height')/2 };
+}
+function setPacket(x,y){ packet.setAttribute('transform', 'translate('+x+','+y+')'); }
+function packetTone(s){ packet.classList.remove('tone-warn','tone-safe');
+  if(s.tone==='warn') packet.classList.add('tone-warn');
+  if(s.tone==='safe') packet.classList.add('tone-safe');
+  pktLabel.textContent = s.pkt || ''; }
+
+function setActive(i){ /* i = step index, or -1 for none */
+  allNodes.forEach(n=>n.classList.remove('active','tone-warn'));
+  allEdges.forEach(e=>e.classList.remove('flowing','tone-warn','tone-safe'));
+  allZones.forEach(z=>z.classList.remove('active'));
+  allBnds.forEach(b=>b.classList.remove('hot'));
+  flow.classList.toggle('focused', i>=0);
+  allNums.forEach(g=>{ const st=+g.dataset.step-1;
+    g.classList.toggle('cur', st===i); g.classList.toggle('past', i>=0 && st<i); });
+  segs.forEach((sg,k)=>{ sg.classList.toggle('cur', k===i); sg.classList.toggle('past', i>=0 && k<i); });
+  $('cur').textContent = i>=0 ? String(i+1).padStart(2,'0') : '—';
+  if(i<0) return;
+  const s = STEPS[i];
+  const node = document.getElementById(s.node);
+  node.classList.add('active'); if(s.tone==='warn') node.classList.add('tone-warn');
+  if(s.edge){ const e=document.getElementById(s.edge); e.classList.add('flowing');
+    if(s.tone==='warn') e.classList.add('tone-warn');
+    if(s.tone==='safe') e.classList.add('tone-safe'); }
+  (s.zones||[]).forEach(z=>{ const el=document.getElementById(z); if(el) el.classList.add('active'); });
+  if(s.hot){ const b=document.getElementById(s.hot); if(b) b.classList.add('hot'); }
+}
+
+/* ---- progress segments ---- */
+const progress = $('progress'), segs=[];
+for(let i=0;i<N;i++){ const sg=document.createElement('span'); sg.className='seg';
+  sg.setAttribute('role','button'); sg.setAttribute('aria-label','Step '+(i+1));
+  sg.addEventListener('click',()=>{ if(intro) exitIntro(); simJump(i); });
+  progress.appendChild(sg); segs.push(sg); }
+$('tot').textContent = String(N).padStart(2,'0');
+
+/* ============================================================
+   run state
+   ============================================================ */
+let simCur = -1;                 /* last completed step index */
+let phase = 'idle';              /* idle | animating | waiting | done */
+let runToken = null;             /* cancel token for the in-flight step */
+let autoplay = false, autoTimer = null;
+
+function cancelRun(){ if(runToken) runToken.cancelled = true; runToken = null;
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; } }
+
+function easeInOutCubic(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+function flyPacket(edgeId, dur, token){
+  return new Promise(res=>{
+    const path = document.getElementById(edgeId);
+    const L = path.getTotalLength();
+    if(reduce){ const p=path.getPointAtLength(L); setPacket(p.x,p.y); return res(); }
+    const t0 = performance.now();
+    (function frame(now){
+      if(token.cancelled) return res();
+      const t = Math.min(1,(now-t0)/dur);
+      const p = path.getPointAtLength(easeInOutCubic(t)*L);
+      setPacket(p.x,p.y);
+      if(t<1) requestAnimationFrame(frame); else res();
+    })(t0);
+  });
+}
+function pulsePacket(nodeId, token){
+  return new Promise(res=>{
+    const c = nodeCenter(nodeId); setPacket(c.x,c.y);
+    if(reduce) return res();
+    packet.classList.remove('pulse'); void packet.getBBox; /* reflow-ish no-op for svg */
+    requestAnimationFrame(()=>packet.classList.add('pulse'));
+    setTimeout(()=>{ packet.classList.remove('pulse'); res(); }, token.cancelled?0:720);
+  });
+}
+function wait(ms, token){ return new Promise(r=>setTimeout(r, (reduce||_token_c(token))?0:ms));
+  function _token_c(t){ return t && t.cancelled; } }
+
+function typeInto(body, el, html, cps, token){
+  return new Promise(res=>{
+    /* type plain text, then swap in the rich html at the end */
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    const txt = tmp.textContent;
+    if(reduce){ el.innerHTML = html; return res(); }
+    const cur = document.createElement('span'); cur.className='cursor';
+    let i = 0;
+    (function tick(){
+      if(token.cancelled){ el.innerHTML = html; return res(); }
+      if(i<=txt.length){
+        el.textContent = txt.slice(0,i); el.appendChild(cur);
+        i += 1 + (txt.length>160 ? 2 : 0);   /* long answers reveal faster */
+        setTimeout(tick, cps);
+        body.scrollTop = body.scrollHeight;
+      } else { el.innerHTML = html; res(); }
+    })();
+  });
+}
+function addMsg(body, ev){ const d=document.createElement('div'); d.className='msg '+ev.who;
+  body.appendChild(d); body.scrollTop = body.scrollHeight; return d; }
+
+async function playChat(s, token){
+  for(const p of livePanels){
+    if(p.type!=='chat') continue;
+    const evs = s[p._field]; if(!evs || !evs.length) continue;
+    for(const ev of evs){
+      const el = addMsg(p._body, ev);
+      if(ev.type) await typeInto(p._body, el, ev.t, 26, token);
+      else { el.innerHTML = ev.t; await wait(320, token); }
+      p._body.scrollTop = p._body.scrollHeight;
+      if(token.cancelled) return;
+    }
+  }
+}
+
+/* ---- panel renderers ---- */
+function inspectorHTML(ins){
+  let h = '<span class="itone '+ins.tone+'">'+ins.toneLabel+'</span>';
+  h += '<div class="ititle">'+ins.title+'</div>';
+  (ins.rows||[]).forEach(r=>{
+    if(r.sec){ h += '<div class="isec">'+r.sec+'</div>'; return; }
+    if(r.head){ h += '<div class="imap ihead"><span>'+(r.h1||'held')+'</span>'
+                   + '<span>'+(r.h2||'list')+'</span><span>'+(r.h3||'picked from it')+'</span></div>'; return; }
+    if(r.field){ h += '<div class="imap"><span class="mraw">'+r.from+'</span>'
+                    + '<span class="mfield"><span class="marr">&rarr;</span>'+r.field+'</span>'
+                    + '<span class="mval">'+r.to+'</span></div>'; return; }
+    h += '<div class="irow'+(r.strike?' strike':'')+'">'
+       + (r.k ? '<span class="k">'+r.t+'</span>' : r.t) + '</div>';
+  });
+  if(ins.note) h += '<div class="inote">'+ins.note+'</div>';
+  return h;
+}
+function codeHTML(pay){
+  let h = pay.title ? '<div class="ctitle">'+pay.title+'</div>' : '';
+  (pay.lines||[]).forEach((ln,idx)=>{
+    const o = (typeof ln === 'string') ? {t:ln} : ln;
+    const cls = 'cline'+(o.hl?' hl':'')+(o.add?' add':'')+(o.del?' del':'');
+    const num = pay.numbers ? '<span class="cn">'+(o.n!=null?o.n:idx+1)+'</span>' : '';
+    h += '<div class="'+cls+'">'+num+'<span class="ct">'+o.t+'</span></div>';
+  });
+  return h;
+}
+function metricsHTML(rows){
+  return (rows||[]).map(r =>
+    '<div class="mrow'+(r.tone?' '+r.tone:'')+'">'
+    + '<span class="mlabel">'+r.label+'</span>'
+    + '<span class="mvalue">'+r.value+'</span>'
+    + (r.delta ? '<span class="mdelta">'+r.delta+'</span>' : '<span></span>')
+    + '</div>').join('');
+}
+function renderReplace(p, payload){
+  const html = p.type==='inspector' ? inspectorHTML(payload)
+             : p.type==='code'      ? codeHTML(payload)
+             : metricsHTML(payload);
+  p._body.classList.remove('swap'); void p._body.offsetWidth;
+  p._body.innerHTML = html; p._body.classList.add('swap');
+}
+
+/* ---- log timestamps ---- */
+const clock0 = (function(){ const m = /^(\d+):(\d+):(\d+)$/.exec(CONFIG.clock.start||'00:00:00');
+  return m ? (+m[1])*3600 + (+m[2])*60 + (+m[3]) : 0; })();
+function stamp(n){ const t = clock0 + (n-1)*(CONFIG.clock.step||1);
+  const pad = v => String(v).padStart(2,'0');
+  return pad(Math.floor(t/3600)%24)+':'+pad(Math.floor(t/60)%60)+':'+pad(t%60); }
+
+function appendLog(p, s, rows, instant){
+  rows.forEach(a=>{
+    const empty = p._body.querySelector('.aempty'); if(empty) empty.remove();
+    const d = document.createElement('div'); d.className='arow';
+    if(instant) d.style.animation='none';
+    d.innerHTML = '<span class="ts">'+stamp(s.n)+'</span>'
+      + '<span class="abadge '+(a.tone||'az')+'">'+a.badge+'</span><span class="atxt">'+a.t+'</span>';
+    p._body.appendChild(d); p._body.scrollTop = p._body.scrollHeight;
+  });
+}
+
+/* everything except chat, which is animated separately */
+function commitStep(s, instant){
+  livePanels.forEach(p=>{
+    if(p.type==='chat') return;
+    const payload = s[p._field];
+    if(p._def.mode==='append'){ if(payload && payload.length) appendLog(p, s, payload, instant); }
+    else if(payload) renderReplace(p, payload);
+  });
+}
+function emptyHTML(p){
+  if(p._def.mode==='append') return p.empty ? '<div class="aempty">'+p.empty+'</div>' : '';
+  return '<div class="aempty" style="font-family:var(--sans)">'+(p.empty||CONFIG.readyText)+'</div>';
+}
+function resetPanels(){ livePanels.forEach(p=>{ p._body.innerHTML = emptyHTML(p); }); }
+
+async function beatFlash(b, token){
+  if(reduce || token.cancelled) return;
+  if(b.fail){ const f=$(b.fail); if(f){ f.classList.add('flash-red'); await wait(520, token); f.classList.remove('flash-red'); } }
+  if(b.pass){ const g=$(b.pass); if(g) g.classList.add('flash-green'); }
+  if(b.boundary){ const bd=$(b.boundary); if(bd) bd.classList.add('hot'); }
+  await wait(520, token);
+  if(b.pass){ const g=$(b.pass); if(g) g.classList.remove('flash-green'); }
+}
+
+async function playStep(i){
+  if(i<0 || i>=N || phase==='animating') return;
+  cancelRun(); const token = runToken = {cancelled:false};
+  phase='animating';
+  const s = STEPS[i];
+  setActive(i); packetTone(s); packet.classList.add('show');
+  /* park the packet at the start of the flight before moving */
+  if(s.edge){ const p0 = document.getElementById(s.edge).getPointAtLength(0); setPacket(p0.x,p0.y); }
+  else { const c=nodeCenter(s.node); setPacket(c.x,c.y); }
+  if(!s.chatAfter) await playChat(s, token);
+  if(token.cancelled) return;
+  if(s.edge) await flyPacket(s.edge, s.dur||700, token);
+  else await pulsePacket(s.node, token);
+  if(token.cancelled) return;
+  if(s.beat) await beatFlash(s.beat, token);
+  if(token.cancelled) return;
+  if(s.chatAfter) await playChat(s, token);
+  if(token.cancelled) return;
+  commitStep(s, false);
+  simCur = i;
+  phase = (i===N-1) ? 'done' : 'waiting';
+  if(phase==='waiting' && autoplay){ autoTimer = setTimeout(()=>playStep(simCur+1), CONFIG.autoplayMs); }
+  if(phase==='done'){ setAutoplay(false); }
+}
+
+/* pure rebuild of every panel + diagram state from STEPS[0..i] */
+function renderStateAt(i){
+  cancelRun();
+  resetPanels();
+  for(let k=0;k<=i;k++){
+    const s = STEPS[k];
+    livePanels.forEach(p=>{
+      if(p.type!=='chat') return;
+      (s[p._field]||[]).forEach(ev=>{ const el=addMsg(p._body, ev); el.innerHTML=ev.t; el.style.animation='none'; });
+    });
+    commitStep(s, true);
+  }
+  if(i>=0){ setActive(i); packetTone(STEPS[i]);
+    const c=nodeCenter(STEPS[i].node); setPacket(c.x,c.y); packet.classList.add('show'); }
+  else { setActive(-1); packet.classList.remove('show'); }
+  livePanels.forEach(p=>{ p._body.scrollTop = p._body.scrollHeight; });
+  simCur = i; phase = (i===N-1) ? 'done' : 'waiting';
+}
+function simJump(i){ renderStateAt(i); }
+
+function setAutoplay(v){ autoplay=v; const b=$('autop');
+  b.classList.toggle('on', v); b.setAttribute('aria-pressed', String(v));
+  b.textContent = 'Autoplay: '+(v?'on':'off');
+  if(!v && autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  if(v && (phase==='waiting'||phase==='idle')){ autoTimer=setTimeout(()=>playStep(simCur+1), 1200); } }
+
+/* ============================================================
+   run control — one view, and it opens paused
+   ============================================================ */
+/* Reset to the ready state. Deliberately does NOT play: nothing is sent until
+   the operator presses the run button (or Space). */
+function armSim(){
+  cancelRun();
+  setAutoplay(false);
+  renderStateAt(-1);
+  phase='idle';
+  history.replaceState(null,'',location.pathname.split('/').pop());
+}
+/* Send from the top. Pressing it mid-run restarts. */
+function runRequest(){ armSim(); setTimeout(()=>playStep(0), 120); }
+
+/* ---- chrome text from CONFIG ---- */
+$('m-sim').innerHTML = '<span class="tri">&#9654;</span> ' + CONFIG.runLabel;
+$('startbtn').innerHTML = '<span class="tri">&#9654;</span> ' + CONFIG.startLabel;
+if(CONFIG.deck && CONFIG.deck.href){
+  const d = $('deckbtn'); d.hidden = false;
+  d.setAttribute('href', CONFIG.deck.href);
+  d.innerHTML = '&#9666; ' + (CONFIG.deck.label || 'Slides');
+  d.addEventListener('click', e=>{
+    /* embedded in the deck's overlay: close it instead of navigating, so fullscreen survives */
+    if(window.parent !== window){ e.preventDefault(); window.parent.postMessage({type:'close-sim'}, '*'); }
+  });
+}
+$('m-sim').addEventListener('click', runRequest);
+$('autop').addEventListener('click', ()=>setAutoplay(!autoplay));
+
+/* ============================================================
+   intro state — diagram only + start button
+   ============================================================ */
+const stageEl = $('stage');
+let intro = stageEl.classList.contains('intro');
+function exitIntro(){ if(!intro) return; intro = false; stageEl.classList.remove('intro'); }
+$('startbtn').addEventListener('click', ()=>{ exitIntro(); armSim(); }); /* run view, paused */
+
+/* ============================================================
+   input wiring
+   ============================================================ */
+allNodes.forEach(n=>{
+  /* clicking a node scrubs the run to the step that node belongs to. No keydown
+     handler on purpose: Space must reach the window handler to advance the run. */
+  n.addEventListener('click', ()=>{ const list = NODE_STEPS[n.id]; if(!list) return;
+    if(intro) exitIntro();
+    simJump(list[0]); });
+});
+
+/* After any MOUSE click, drop focus from the clicked control. Otherwise the
+   focused button re-activates on the next Space press (e.g. the run button
+   restarting the sim instead of advancing it). Keyboard activation (detail 0)
+   keeps focus for accessibility. */
+document.addEventListener('click', e=>{
+  if(e.detail===0) return;
+  const el = e.target.closest ? e.target.closest('button,[tabindex]') : null;
+  if(el && el.blur) el.blur();
+});
+allNums.forEach(g=>g.addEventListener('click', ()=>{
+  const i = +g.dataset.step-1;
+  if(intro) exitIntro();
+  simJump(i);
+}));
+
+/* digit shortcuts: 1-9 then 0, -, = for steps 10-12 */
+const DIGITS = {};
+'1234567890-='.split('').forEach((ch,idx)=>{ if(idx < N) DIGITS[ch] = idx; });
+
+window.addEventListener('keydown', e=>{
+  if(intro && e.key!=='f' && e.key!=='F'){
+    /* leaving the intro lands in the run view READY, never mid-send. Only S sends. */
+    if(e.key==='s'||e.key==='S'){ exitIntro(); runRequest(); }
+    else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'||e.key==='ArrowRight'){
+      e.preventDefault(); exitIntro(); armSim();
+    } else if(e.key in DIGITS){ exitIntro(); simJump(DIGITS[e.key]); }
+    else if(e.key==='Escape'){ exitIntro(); armSim(); }
+    return;
+  }
+  switch(e.key){
+    case 'ArrowRight': case 'PageDown': case ' ': case 'Spacebar':
+      e.preventDefault();
+      if(phase==='waiting'||phase==='idle') playStep(simCur+1);
+      break;
+    case 'ArrowLeft': case 'PageUp':
+      e.preventDefault(); renderStateAt(Math.max(-1,simCur-1));
+      break;
+    case 'Home': e.preventDefault(); armSim(); break;
+    case 'End':  e.preventDefault(); renderStateAt(N-1); break;
+    case 's': case 'S': runRequest(); break;
+    case 'a': case 'A': setAutoplay(!autoplay); break;
+    case 'f': case 'F':
+      if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); }
+      else { document.exitFullscreen?.(); }
+      break;
+    case 'Escape': armSim(); break;
+    default:
+      if(e.key in DIGITS) simJump(DIGITS[e.key]);
+  }
+});
+
+/* ---- init (hash deep-link: #4 scrubs the run to step 4, skipping the intro) ---- */
+const h = parseInt((location.hash||'').slice(1),10);
+if(!isNaN(h) && h>=1 && h<=N){ exitIntro(); renderStateAt(h-1); }
+else renderStateAt(-1);
+window.addEventListener('hashchange', ()=>{
+  const v = parseInt(location.hash.slice(1),10);
+  if(!isNaN(v) && v>=1 && v<=N && v-1!==simCur){ exitIntro(); renderStateAt(v-1); }
+});
+})();
+</script>
+</body>
+</html>

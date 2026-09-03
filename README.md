@@ -1,6 +1,6 @@
 # REST APIs, JSON & the Microsoft Graph Security API
 
-> A hands-on training kit for Cloud Solution Architects: a 20-slide deck, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using the `ThreatHunting.Read.All` permission — app-only *and* delegated, so learners experience the difference.
+> A hands-on training kit for Cloud Solution Architects: a 20-slide deck, three interactive request-flow simulations, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using the `ThreatHunting.Read.All` permission — app-only *and* delegated, so learners experience the difference.
 
 ![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-5391FE?logo=powershell&logoColor=white)
 ![Microsoft Graph v1.0](https://img.shields.io/badge/Microsoft%20Graph-v1.0-0078D4)
@@ -22,7 +22,10 @@
 
 | File | Purpose |
 | --- | --- |
-| [`REST-APIs-JSON-Graph-Security-API.html`](REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
+| [`REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
+| [`Sim-App-Registration-Admin-Consent.html`](class_content/Sim-App-Registration-Admin-Consent.html) | 13-step simulation of creating the app registration, client secret, service principal, and programmatic admin consent through Microsoft Graph. |
+| [`Sim-AppOnly-Client-Credentials.html`](class_content/Sim-AppOnly-Client-Credentials.html) | 12-step simulation of OpenID discovery, the OAuth 2.0 client-credentials token request, `runHuntingQuery`, error boundaries, and JSON output. |
+| [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated browser sign-in, admin consent, authorization-code redemption, the `scp` claim, and the Graph hunting call. |
 | [`JSON-Anatomy-Diagram.svg`](images/JSON-Anatomy-Diagram.svg) · [`JSON-Anatomy-Diagram.png`](images/JSON-Anatomy-Diagram.png) | Stand-alone diagram of a JSON object: keys/values, string, number, boolean, null, array, array of objects, nested object, with PowerShell 7 equivalents. Also embedded on slide 8. |
 | [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
 | [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates the app registration **programmatically through Graph REST calls**: `ThreatHunting.Read.All` (Application), tenant-wide admin consent, a 12-month client secret, and writes `scripts/HuntingDemo.settings.json`. |
@@ -142,7 +145,7 @@ Console output: resolved endpoints and their source, the three calls, `HTTP <sta
 
 ## The deck
 
-Open `REST-APIs-JSON-Graph-Security-API.html` in a browser.
+Open [`class_content/REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) in a browser.
 
 | Key | Action |
 | --- | --- |
@@ -152,6 +155,12 @@ Open `REST-APIs-JSON-Graph-Security-API.html` in a browser.
 | **1–9**, **Home / End** | Jump to slide / first / last |
 
 Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP verbs → why JSON → **JSON anatomy diagram** → JSON types ↔ PowerShell → Graph Security API (endpoint, request, quotas) → `ThreatHunting.Read.All` & admin consent → token flow → the KQL → Step 1 discovery + token → Step 2 `Invoke-RestMethod` switch by switch → Step 3 response → JSON file → switch reference → prerequisites & Microsoft Learn → live demo / Q&A.
+
+### Interactive simulations
+
+Open any simulator from `class_content`, select **Start simulation**, then choose **Run the script** or **Run the call**. Use **Space** or **→** to advance, **←** to step back, the numbered progress segments to jump, and **Autoplay** for an unattended walkthrough. The **Slides** control returns to the deck.
+
+Recommended sequence: app registration and admin consent → app-only client credentials → delegated sign-in and consent. Together they expose the request/response payloads, PowerShell commands, identity boundary, expected failures, and resulting tenant or file state before the live demo touches a tenant.
 
 ## The diagram
 

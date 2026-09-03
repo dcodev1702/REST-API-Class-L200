@@ -3,3 +3,6 @@ scripts/HuntingDemo.settings.json
 
 # Advanced hunting query results
 SignIns-*.json
+
+# VS Code workspace settings
+.vscode/

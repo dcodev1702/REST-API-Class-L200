@@ -135,8 +135,8 @@ EntraIdSignInEvents                              // Defender XDR advanced huntin
 | `-DisplayName` | generated after sign-in | `Graph Security API - Hunting Demo - <alias> - <6 random characters>`. Pass an exact name to override generation; an existing exact-name match is reused (new secret added, consent verified). |
 | `-TenantId` | *(current)* | Tenant ID or verified domain; also drives endpoint discovery. |
 | `-Environment` | *(discovered)* | `Public` or `AzureGov` override. |
-| `-SecretValidityMonths` | `12` | 1–24. Sets `passwordCredential.endDateTime`. |
-| `-CertificateValidityMonths` | `12` | 1–24. Sets the training certificate lifetime; the final private key is non-exportable. |
+| `-SecretValidityMonths` | `12` | 1–1000. Sets `passwordCredential.endDateTime`. |
+| `-CertificateValidityMonths` | `12` | 1–1000. Sets the training certificate lifetime; the final private key is non-exportable. |
 | `-IncludeDelegatedScope` | off | Adds the delegated scope, `http://localhost` fallback, WAM broker redirect `ms-appx-web://microsoft.aad.brokerplugin/{client_id}`, and an `oauth2PermissionGrant` (AllPrincipals). |
 | `-PreviewName` | off | Signs in, prints the generated default name, and exits before any Graph or file changes. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Identifiers, endpoints and certificate metadata only — never the secret or private key. |

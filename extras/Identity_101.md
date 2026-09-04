@@ -197,7 +197,7 @@ The console’s **TRAINING ONLY CERTIFICATE DETAILS** block supplies exact corre
 - Application object ID
 - Tenant ID
 - Certificate subject, friendly name, key ID and thumbprints
-- `Cert:\CurrentUser\My` store location and 12-month validity (adjustable from 1–24 months)
+- `Cert:\CurrentUser\My` store location and 12-month validity (adjustable from 1–1000 months)
 - `TRAINING ONLY - SELF-SIGNED - NOT FOR PRODUCTION` purpose
 
 The script sends only the Base64 public certificate to `PATCH /applications/{id}` as an `AsymmetricX509Cert` / `Verify` key credential. It does not export a `.cer` or `.pfx`, write a private key to disk, or place private-key material in `HuntingDemo.settings.json`; common certificate and key extensions are also Git-ignored.

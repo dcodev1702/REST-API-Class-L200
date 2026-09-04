@@ -43,9 +43,9 @@
 .PARAMETER Environment
     Public (default when discovery is not possible) or AzureGov. Optional override; discovery is preferred.
 .PARAMETER SecretValidityMonths
-    Lifetime of the client secret in months (1-24). Default 12 = "good for one year".
+    Lifetime of the client secret in months (1-1000). Default 12 = "good for one year".
 .PARAMETER CertificateValidityMonths
-    Lifetime of the training-only self-signed certificate in months (1-24). Default 12. The private key is
+    Lifetime of the training-only self-signed certificate in months (1-1000). Default 12. The private key is
     non-exportable and remains in Cert:\CurrentUser\My.
 .PARAMETER IncludeDelegatedScope
     Also configure delegated WAM authentication (scope + loopback/broker redirect URIs + admin grant).
@@ -87,10 +87,10 @@ param(
     [ValidateSet('Public', 'AzureGov')]
     [string] $Environment,
 
-    [ValidateRange(1, 24)]
+    [ValidateRange(1, 1000)]
     [int] $SecretValidityMonths = 12,
 
-    [ValidateRange(1, 24)]
+    [ValidateRange(1, 1000)]
     [int] $CertificateValidityMonths = 12,
 
     [switch] $IncludeDelegatedScope,

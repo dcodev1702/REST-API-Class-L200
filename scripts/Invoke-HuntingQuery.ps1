@@ -1,4 +1,6 @@
 #Requires -Version 7.3
+# Author: DCODEV1702 & GHCP (ChatGPT 5.6 Sol)
+# Date: 2026-09-03
 <#
 .SYNOPSIS
     Runs a Microsoft Defender XDR advanced hunting query through the Microsoft Graph Security API

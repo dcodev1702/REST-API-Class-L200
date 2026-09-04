@@ -1,5 +1,7 @@
 #Requires -Version 7.3
 #Requires -Modules Microsoft.Graph.Authentication
+# Author: DCODEV1702 & GHCP (ChatGPT 5.6 Sol)
+# Date: 2026-09-03
 <#
 .SYNOPSIS
     Creates (or reuses) the Entra ID app registration used by the authentication demos - programmatically, through

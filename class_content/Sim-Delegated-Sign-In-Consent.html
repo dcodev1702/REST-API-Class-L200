@@ -866,10 +866,10 @@ const STEPS = [
       {t:'depth 3 &middot; results[0].Apps[] &mdash; an <b>array inside an object</b>', html:true},
       {t:'default -Depth 2 would flatten Apps to a string', strike:true}],
       note:'Three auth modes, one response format. Secret and certificate are app-only; delegated uses WAM and user context.'},
-    code:{title:'correlated teardown after jwt.ms inspection', numbers:false, lines:[
+    code:{title:'manual teardown after jwt.ms inspection', numbers:false, lines:[
       {t:'$response | ConvertTo-Json -Depth 10 | Set-Content -Path $path -Encoding utf8', hl:true},
-      {t:'.\\scripts\\Remove-HuntingAppRegistration.ps1 -WhatIf<span class="cm">  # GET + correlation only</span>', hl:true},
-      {t:'.\\scripts\\Remove-HuntingAppRegistration.ps1<span class="cm">          # one confirmed teardown</span>', hl:true},
+      {t:'<span class="cm"># Run the next commands manually only after the token comparison.</span>'},
+      {t:'Disconnect-MgGraph<span class="cm">     # clears the Graph PowerShell context</span>', hl:true},
       {t:'Set-Clipboard -Value \'\'<span class="cm">  # clears the copied bearer token</span>', hl:true},
       {t:'<span class="cm"># The selected work account remains managed by Windows WAM.</span>'}]}
   },

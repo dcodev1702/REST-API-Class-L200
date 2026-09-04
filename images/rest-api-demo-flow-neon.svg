@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1240" viewBox="0 0 1400 1240" role="img" aria-labelledby="diagram-title diagram-description">
   <title id="diagram-title">REST API demo end-to-end request sequence</title>
-  <desc id="diagram-description">PowerShell discovers Microsoft Entra endpoints, requests an OAuth token using a secret or correlated training certificate, copies the complete JWT to the clipboard, calls Microsoft Graph Security API, and writes the JSON response.</desc>
+  <desc id="diagram-description">PowerShell 7 discovers Microsoft Entra endpoints, requests an OAuth 2.0 token using a client secret or certificate, copies the JWT to the clipboard, calls the Microsoft Graph Security API, and writes the JSON response to a local file.</desc>
   <defs>
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#152238" stroke-width="1" opacity="0.35"/>
     </pattern>
     <linearGradient id="header-line" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#bc8cff"/>
-      <stop offset="0.45" stop-color="#58a6ff"/>
-      <stop offset="0.78" stop-color="#2dd4bf"/>
+      <stop offset="0" stop-color="#58a6ff"/>
+      <stop offset="0.5" stop-color="#bc8cff"/>
+      <stop offset="0.85" stop-color="#2dd4bf"/>
       <stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="footer-fill" x1="0" y1="0" x2="1" y2="0">
@@ -17,28 +17,27 @@
       <stop offset="1" stop-color="#0d1725"/>
     </linearGradient>
     <filter id="glow-blue" x="-25%" y="-35%" width="150%" height="170%">
-      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#58a6ff" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#58a6ff" flood-opacity="0.38"/>
     </filter>
     <filter id="glow-purple" x="-25%" y="-35%" width="150%" height="170%">
-      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#bc8cff" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#bc8cff" flood-opacity="0.38"/>
     </filter>
     <filter id="glow-teal" x="-25%" y="-35%" width="150%" height="170%">
-      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#2dd4bf" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#2dd4bf" flood-opacity="0.38"/>
     </filter>
-    <filter id="glow-coral" x="-25%" y="-35%" width="150%" height="170%">
-      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#ff7b72" flood-opacity="0.4"/>
-    </filter>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#58a6ff"/>
+
+    <!-- Arrowheads: fixed size regardless of stroke width; tip sits exactly at the line end -->
+    <marker id="arrow-blue" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" refX="10" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 L 2.6 5 z" fill="#58a6ff"/>
     </marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#bc8cff"/>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" refX="10" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 L 2.6 5 z" fill="#bc8cff"/>
     </marker>
-    <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf"/>
+    <marker id="arrow-teal" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" refX="10" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 L 2.6 5 z" fill="#2dd4bf"/>
     </marker>
-    <marker id="arrow-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff7b72"/>
+    <marker id="arrow-red" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" refX="10" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 L 2.6 5 z" fill="#f85149"/>
     </marker>
   </defs>
 
@@ -46,51 +45,54 @@
   <rect width="1400" height="1240" fill="url(#grid)"/>
 
   <g font-family="'Segoe UI','Inter',sans-serif" text-rendering="geometricPrecision">
+
+    <!-- ===== Header ===== -->
     <text x="36" y="51" fill="#e6edf3" font-size="31" font-weight="800">REST API DEMO <tspan fill="#8b949e" font-weight="400">// End-to-end request sequence</tspan></text>
     <text x="37" y="83" fill="#8b949e" font-size="12.5" font-weight="600" letter-spacing="2.2">OPENID DISCOVERY &#183; OAUTH 2.0 TOKEN &#183; MICROSOFT GRAPH SECURITY API &#183; JSON OUTPUT</text>
-    <circle cx="1161" cy="43" r="5" fill="#3fb950"/>
+    <circle cx="1161" cy="43" r="5" fill="#58a6ff"/>
     <text x="1175" y="48" fill="#c9d1d9" font-size="13" font-weight="650">3 REST calls &#183; 7 messages</text>
     <rect x="36" y="103" width="1328" height="4" rx="2" fill="url(#header-line)"/>
 
+    <!-- ===== Legend: arrow colour = the service being called; responses are always neutral dashed ===== -->
     <g font-size="12.5" font-weight="650">
-      <rect x="132" y="126" width="176" height="31" rx="15.5" fill="#0d1420" stroke="#58a6ff"/>
-      <circle cx="151" cy="141.5" r="4" fill="#58a6ff"/>
-      <text x="163" y="146" fill="#c9d1d9">Request &#183; GET</text>
-
-      <rect x="321" y="126" width="184" height="31" rx="15.5" fill="#0d1420" stroke="#ff7b72"/>
-      <circle cx="340" cy="141.5" r="4" fill="#ff7b72"/>
-      <text x="352" y="146" fill="#c9d1d9">Request &#183; POST</text>
-
-      <rect x="518" y="126" width="204" height="31" rx="15.5" fill="#0d1420" stroke="#2dd4bf" stroke-dasharray="5 4"/>
-      <circle cx="537" cy="141.5" r="4" fill="#2dd4bf"/>
-      <text x="549" y="146" fill="#c9d1d9">Response &#183; JSON</text>
-
-      <rect x="735" y="126" width="210" height="31" rx="15.5" fill="#0d1420" stroke="#bc8cff"/>
-      <circle cx="754" cy="141.5" r="4" fill="#bc8cff"/>
-      <text x="766" y="146" fill="#c9d1d9">Identity / auth</text>
-
-      <rect x="958" y="126" width="197" height="31" rx="15.5" fill="#0d1420" stroke="#3fb950"/>
-      <circle cx="977" cy="141.5" r="4" fill="#3fb950"/>
-      <text x="989" y="146" fill="#c9d1d9">Local output</text>
+      <g transform="translate(206,0)">
+        <rect x="0" y="126" width="210" height="31" rx="15.5" fill="#0d1420" stroke="#bc8cff"/>
+        <line x1="16" y1="141.5" x2="46" y2="141.5" stroke="#bc8cff" stroke-width="2" marker-end="url(#arrow-purple)"/>
+        <text x="58" y="146" fill="#c9d1d9">Request &#8594; Entra ID</text>
+      </g>
+      <g transform="translate(430,0)">
+        <rect x="0" y="126" width="260" height="31" rx="15.5" fill="#0d1420" stroke="#2dd4bf"/>
+        <line x1="16" y1="141.5" x2="46" y2="141.5" stroke="#2dd4bf" stroke-width="2" marker-end="url(#arrow-teal)"/>
+        <text x="58" y="146" fill="#c9d1d9">Request &#8594; Microsoft Graph</text>
+      </g>
+      <g transform="translate(704,0)">
+        <rect x="0" y="126" width="215" height="31" rx="15.5" fill="#0d1420" stroke="#f85149" stroke-dasharray="5 4"/>
+        <line x1="16" y1="141.5" x2="46" y2="141.5" stroke="#f85149" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow-red)"/>
+        <text x="58" y="146" fill="#c9d1d9">Response &#183; 200 JSON</text>
+      </g>
+      <g transform="translate(933,0)">
+        <rect x="0" y="126" width="260" height="31" rx="15.5" fill="#0d1420" stroke="#58a6ff"/>
+        <path d="M 18 135 H 42 V 148 H 22" fill="none" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow-blue)"/>
+        <text x="58" y="146" fill="#c9d1d9">Local action &#183; PowerShell</text>
+      </g>
     </g>
 
-    <g data-source-label="PowerShell 7&lt;br/&gt;Invoke-RestMethod">
+    <!-- ===== Actors ===== -->
+    <g>
       <rect x="35" y="184" width="350" height="91" rx="45.5" fill="#0f1626" stroke="#58a6ff" stroke-width="1.8" filter="url(#glow-blue)"/>
       <rect x="59" y="200" width="71" height="22" rx="11" fill="#111f34" stroke="#58a6ff" stroke-opacity="0.72"/>
       <text x="94.5" y="215" fill="#58a6ff" font-size="10.5" font-weight="750" text-anchor="middle">CLIENT</text>
       <text x="210" y="239" fill="#e6edf3" font-size="20" font-weight="750" text-anchor="middle">PowerShell 7</text>
       <text x="210" y="261" fill="#8b949e" font-size="14" font-family="'Cascadia Code','Consolas',monospace" text-anchor="middle">Invoke-RestMethod</text>
     </g>
-
-    <g data-source-label="Microsoft Entra ID&lt;br/&gt;login.microsoftonline.{com|us}">
+    <g>
       <rect x="525" y="184" width="350" height="91" rx="45.5" fill="#0f1626" stroke="#bc8cff" stroke-width="1.8" filter="url(#glow-purple)"/>
       <rect x="549" y="200" width="140" height="22" rx="11" fill="#201832" stroke="#bc8cff" stroke-opacity="0.72"/>
       <text x="619" y="215" fill="#bc8cff" font-size="10.5" font-weight="750" text-anchor="middle">IDENTITY PROVIDER</text>
       <text x="700" y="239" fill="#e6edf3" font-size="20" font-weight="750" text-anchor="middle">Microsoft Entra ID</text>
       <text x="700" y="261" fill="#8b949e" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace" text-anchor="middle">login.microsoftonline.{com|us}</text>
     </g>
-
-    <g data-source-label="Microsoft Graph&lt;br/&gt;{msgraph_host}/v1.0">
+    <g>
       <rect x="1015" y="184" width="350" height="91" rx="45.5" fill="#0f1626" stroke="#2dd4bf" stroke-width="1.8" filter="url(#glow-teal)"/>
       <rect x="1039" y="200" width="105" height="22" rx="11" fill="#102528" stroke="#2dd4bf" stroke-opacity="0.72"/>
       <text x="1091.5" y="215" fill="#2dd4bf" font-size="10.5" font-weight="750" text-anchor="middle">RESOURCE API</text>
@@ -98,105 +100,107 @@
       <text x="1190" y="261" fill="#8b949e" font-size="14" font-family="'Cascadia Code','Consolas',monospace" text-anchor="middle">{msgraph_host}/v1.0</text>
     </g>
 
-    <g stroke="#33445f" stroke-width="1.4" stroke-dasharray="5 8" opacity="0.8">
-      <line x1="210" y1="276" x2="210" y2="1147"/>
-      <line x1="700" y1="276" x2="700" y2="982"/>
-      <line x1="1190" y1="276" x2="1190" y2="982"/>
+    <!-- ===== Lifelines (tinted with each actor's colour) ===== -->
+    <g stroke-width="1.4" stroke-dasharray="5 8" stroke-opacity="0.38">
+      <line x1="210" y1="276" x2="210" y2="1150" stroke="#58a6ff"/>
+      <line x1="700" y1="276" x2="700" y2="982" stroke="#bc8cff"/>
+      <line x1="1190" y1="276" x2="1190" y2="982" stroke="#2dd4bf"/>
     </g>
 
+    <!-- ===== 01 DISCOVER  (PowerShell -> Entra ID) ===== -->
     <g>
       <rect x="18" y="300" width="1364" height="190" rx="15" fill="#0d1420" fill-opacity="0.76" stroke="#1d2a40"/>
-      <rect x="31" y="313" width="142" height="27" rx="13.5" fill="#111f34" stroke="#58a6ff"/>
-      <text x="102" y="331" fill="#58a6ff" font-size="11.5" font-weight="750" text-anchor="middle">01 &#183; DISCOVER</text>
+      <rect x="19" y="316" width="4" height="158" rx="2" fill="#bc8cff" opacity="0.85"/>
+      <rect x="34" y="313" width="142" height="27" rx="13.5" fill="#201832" stroke="#bc8cff"/>
+      <text x="105" y="331" fill="#bc8cff" font-size="11.5" font-weight="750" text-anchor="middle">01 &#183; DISCOVER</text>
+      <text x="36" y="361" fill="#8b949e" font-size="11.5" font-weight="600">PowerShell &#8594; Entra ID</text>
 
-      <g data-source-label="GET /{tenant}/v2.0/.well-known/openid-configuration  (no token)">
-        <rect x="278" y="319" width="411" height="61" rx="13" fill="#0f1626" stroke="#284f78"/>
-        <rect x="294" y="332" width="54" height="25" rx="12.5" fill="#12243b" stroke="#58a6ff"/>
-        <text x="321" y="349" fill="#58a6ff" font-size="11.5" font-weight="800" text-anchor="middle">GET</text>
-        <text x="360" y="345" fill="#e6edf3" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">/{tenant}/v2.0/.well-known/</text>
-        <text x="360" y="366" fill="#c9d1d9" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">openid-configuration  <tspan fill="#8b949e">(no token)</tspan></text>
-        <line x1="210" y1="391" x2="690" y2="391" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow-blue)"/>
-      </g>
+      <rect x="278" y="319" width="411" height="61" rx="13" fill="#0f1626" stroke="#65468f"/>
+      <rect x="294" y="332" width="54" height="25" rx="12.5" fill="#201832" stroke="#bc8cff"/>
+      <text x="321" y="349" fill="#bc8cff" font-size="11.5" font-weight="800" text-anchor="middle">GET</text>
+      <text x="360" y="345" fill="#e6edf3" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">/{tenant}/v2.0/.well-known/</text>
+      <text x="360" y="366" fill="#c9d1d9" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">openid-configuration  <tspan fill="#8b949e">(no token)</tspan></text>
+      <line x1="210" y1="391" x2="698" y2="391" stroke="#bc8cff" stroke-width="2" marker-end="url(#arrow-purple)"/>
 
-      <g data-source-label="200 JSON  { token_endpoint, msgraph_host, ... }">
-        <rect x="267" y="408" width="432" height="48" rx="13" fill="#0f1626" stroke="#1f6865" stroke-dasharray="5 4"/>
-        <rect x="284" y="419" width="78" height="25" rx="12.5" fill="#102528" stroke="#2dd4bf"/>
-        <text x="323" y="436" fill="#2dd4bf" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
-        <text x="375" y="436" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">{ token_endpoint, msgraph_host, ... }</text>
-        <line x1="690" y1="471" x2="220" y2="471" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-teal)"/>
-      </g>
+      <rect x="267" y="408" width="432" height="48" rx="13" fill="#0f1626" stroke="#3a4657" stroke-dasharray="5 4"/>
+      <rect x="284" y="419" width="78" height="25" rx="12.5" fill="#141c29" stroke="#56657a"/>
+      <text x="323" y="436" fill="#c9d1d9" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
+      <text x="375" y="436" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">{ token_endpoint, msgraph_host, ... }</text>
+      <line x1="700" y1="471" x2="212" y2="471" stroke="#f85149" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-red)"/>
     </g>
 
+    <!-- ===== 02 AUTHORIZE  (PowerShell -> Entra ID) ===== -->
     <g>
       <rect x="18" y="504" width="1364" height="212" rx="15" fill="#0d1420" fill-opacity="0.76" stroke="#1d2a40"/>
-      <rect x="31" y="517" width="151" height="27" rx="13.5" fill="#201832" stroke="#bc8cff"/>
-      <text x="106.5" y="535" fill="#bc8cff" font-size="11.5" font-weight="750" text-anchor="middle">02 &#183; AUTHORIZE</text>
+      <rect x="19" y="520" width="4" height="180" rx="2" fill="#bc8cff" opacity="0.85"/>
+      <rect x="34" y="517" width="151" height="27" rx="13.5" fill="#201832" stroke="#bc8cff"/>
+      <text x="109.5" y="535" fill="#bc8cff" font-size="11.5" font-weight="750" text-anchor="middle">02 &#183; AUTHORIZE</text>
+      <text x="36" y="565" fill="#8b949e" font-size="11.5" font-weight="600">PowerShell &#8594; Entra ID</text>
 
-      <g data-source-label="POST {token_endpoint}  (client secret or certificate-signed assertion, scope=.default)">
-        <rect x="273" y="526" width="658" height="68" rx="13" fill="#0f1626" stroke="#65468f"/>
-        <rect x="290" y="539" width="59" height="25" rx="12.5" fill="#201832" stroke="#bc8cff"/>
-        <text x="319.5" y="556" fill="#bc8cff" font-size="11.5" font-weight="800" text-anchor="middle">POST</text>
-        <text x="362" y="553" fill="#e6edf3" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">{token_endpoint}</text>
-        <text x="362" y="577" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">client_secret OR certificate assertion &#183; scope=.default</text>
-        <line x1="210" y1="610" x2="690" y2="610" stroke="#bc8cff" stroke-width="2" marker-end="url(#arrow-purple)"/>
-      </g>
+      <rect x="273" y="526" width="658" height="68" rx="13" fill="#0f1626" stroke="#65468f"/>
+      <rect x="290" y="539" width="59" height="25" rx="12.5" fill="#201832" stroke="#bc8cff"/>
+      <text x="319.5" y="556" fill="#bc8cff" font-size="11.5" font-weight="800" text-anchor="middle">POST</text>
+      <text x="362" y="553" fill="#e6edf3" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">{token_endpoint}</text>
+      <text x="362" y="577" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">client_secret OR certificate assertion &#183; scope=.default</text>
+      <line x1="210" y1="610" x2="698" y2="610" stroke="#bc8cff" stroke-width="2" marker-end="url(#arrow-purple)"/>
 
-      <g data-source-label="200 JSON  { access_token (JWT, roles), expires_in }  then complete JWT to clipboard">
-        <rect x="268" y="626" width="664" height="61" rx="13" fill="#0f1626" stroke="#1f6865" stroke-dasharray="5 4"/>
-        <rect x="285" y="638" width="78" height="25" rx="12.5" fill="#102528" stroke="#2dd4bf"/>
-        <text x="324" y="655" fill="#2dd4bf" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
-        <text x="376" y="652" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">{ access_token (JWT, roles: ThreatHunting.Read.All), expires_in }</text>
-        <text x="376" y="674" fill="#e3b341" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">complete header.payload.signature &#8594; clipboard &#8594; jwt.ms</text>
-        <line x1="690" y1="699" x2="220" y2="699" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-teal)"/>
-      </g>
+      <rect x="268" y="626" width="664" height="61" rx="13" fill="#0f1626" stroke="#3a4657" stroke-dasharray="5 4"/>
+      <rect x="285" y="638" width="78" height="25" rx="12.5" fill="#141c29" stroke="#56657a"/>
+      <text x="324" y="655" fill="#c9d1d9" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
+      <text x="376" y="652" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">{ access_token (JWT, roles: ThreatHunting.Read.All), expires_in }</text>
+      <text x="376" y="674" fill="#e3b341" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">complete header.payload.signature &#8594; clipboard &#8594; jwt.ms</text>
+      <line x1="700" y1="699" x2="212" y2="699" stroke="#f85149" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-red)"/>
     </g>
 
+    <!-- ===== 03 QUERY  (PowerShell -> Microsoft Graph) ===== -->
     <g>
       <rect x="18" y="730" width="1364" height="250" rx="15" fill="#0d1420" fill-opacity="0.76" stroke="#1d2a40"/>
-      <rect x="31" y="743" width="132" height="27" rx="13.5" fill="#2a181c" stroke="#ff7b72"/>
-      <text x="97" y="761" fill="#ff7b72" font-size="11.5" font-weight="750" text-anchor="middle">03 &#183; QUERY</text>
+      <rect x="19" y="746" width="4" height="218" rx="2" fill="#2dd4bf" opacity="0.85"/>
+      <rect x="34" y="743" width="132" height="27" rx="13.5" fill="#102528" stroke="#2dd4bf"/>
+      <text x="100" y="761" fill="#2dd4bf" font-size="11.5" font-weight="750" text-anchor="middle">03 &#183; QUERY</text>
+      <text x="36" y="791" fill="#8b949e" font-size="11.5" font-weight="600">PowerShell &#8594; Microsoft Graph</text>
 
-      <g data-source-label="POST /security/runHuntingQuery&lt;br/&gt;Authorization: Bearer &lt;token&gt; · Content-Type: application/json&lt;br/&gt;{ &quot;Query&quot;: &quot;&lt;KQL&gt;&quot;, &quot;Timespan&quot;: &quot;P1D&quot; }">
-        <rect x="350" y="752" width="700" height="103" rx="14" fill="#0f1626" stroke="#82433f" filter="url(#glow-coral)"/>
-        <rect x="368" y="766" width="59" height="25" rx="12.5" fill="#2a181c" stroke="#ff7b72"/>
-        <text x="397.5" y="783" fill="#ff7b72" font-size="11.5" font-weight="800" text-anchor="middle">POST</text>
-        <text x="441" y="783" fill="#e6edf3" font-size="15" font-family="'Cascadia Code','Consolas',monospace">/security/runHuntingQuery</text>
-        <text x="368" y="812" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">Authorization: Bearer &lt;token&gt; &#183; Content-Type: application/json</text>
-        <text x="368" y="839" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">{ &quot;Query&quot;: &quot;&lt;KQL&gt;&quot;, &quot;Timespan&quot;: &quot;P1D&quot; }</text>
-        <line x1="210" y1="875" x2="1180" y2="875" stroke="#ff7b72" stroke-width="2.2" marker-end="url(#arrow-coral)"/>
-      </g>
+      <rect x="350" y="752" width="700" height="103" rx="14" fill="#0f1626" stroke="#1f6865" filter="url(#glow-teal)"/>
+      <rect x="368" y="766" width="59" height="25" rx="12.5" fill="#102528" stroke="#2dd4bf"/>
+      <text x="397.5" y="783" fill="#2dd4bf" font-size="11.5" font-weight="800" text-anchor="middle">POST</text>
+      <text x="441" y="783" fill="#e6edf3" font-size="15" font-family="'Cascadia Code','Consolas',monospace">/security/runHuntingQuery</text>
+      <text x="368" y="812" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">Authorization: Bearer &lt;token&gt; &#183; Content-Type: application/json</text>
+      <text x="368" y="839" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">{ &quot;Query&quot;: &quot;&lt;KQL&gt;&quot;, &quot;Timespan&quot;: &quot;P1D&quot; }</text>
+      <line x1="210" y1="875" x2="1188" y2="875" stroke="#2dd4bf" stroke-width="2.2" marker-end="url(#arrow-teal)"/>
 
-      <g data-source-label="200 JSON  { schema: [ {name,type} ], results: [ {row} ] }">
-        <rect x="410" y="898" width="615" height="57" rx="13" fill="#0f1626" stroke="#1f6865" stroke-dasharray="5 4"/>
-        <rect x="427" y="914" width="78" height="25" rx="12.5" fill="#102528" stroke="#2dd4bf"/>
-        <text x="466" y="931" fill="#2dd4bf" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
-        <text x="518" y="931" fill="#c9d1d9" font-size="13.8" font-family="'Cascadia Code','Consolas',monospace">{ schema: [ {name,type} ], results: [ {row} ] }</text>
-        <line x1="1180" y1="967" x2="220" y2="967" stroke="#2dd4bf" stroke-width="2.2" stroke-dasharray="7 6" marker-end="url(#arrow-teal)"/>
-      </g>
+      <rect x="410" y="898" width="615" height="57" rx="13" fill="#0f1626" stroke="#3a4657" stroke-dasharray="5 4"/>
+      <rect x="427" y="914" width="78" height="25" rx="12.5" fill="#141c29" stroke="#56657a"/>
+      <text x="466" y="931" fill="#c9d1d9" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
+      <text x="518" y="931" fill="#c9d1d9" font-size="13.8" font-family="'Cascadia Code','Consolas',monospace">{ schema: [ {name,type} ], results: [ {row} ] }</text>
+      <line x1="1190" y1="967" x2="212" y2="967" stroke="#f85149" stroke-width="2.2" stroke-dasharray="7 6" marker-end="url(#arrow-red)"/>
     </g>
 
+    <!-- ===== 04 PERSIST  (PowerShell only - self message) ===== -->
     <g>
       <rect x="18" y="994" width="1364" height="160" rx="15" fill="#0d1420" fill-opacity="0.76" stroke="#1d2a40"/>
-      <rect x="31" y="1007" width="135" height="27" rx="13.5" fill="#1a281f" stroke="#3fb950"/>
-      <text x="98.5" y="1025" fill="#3fb950" font-size="11.5" font-weight="750" text-anchor="middle">04 &#183; PERSIST</text>
+      <rect x="19" y="1010" width="4" height="128" rx="2" fill="#58a6ff" opacity="0.85"/>
+      <rect x="34" y="1007" width="135" height="27" rx="13.5" fill="#111f34" stroke="#58a6ff"/>
+      <text x="101.5" y="1025" fill="#58a6ff" font-size="11.5" font-weight="750" text-anchor="middle">04 &#183; PERSIST</text>
+      <text x="36" y="1055" fill="#8b949e" font-size="11.5" font-weight="600">PowerShell only &#183; no network call</text>
 
-      <g data-source-label="Complete JWT to clipboard; response to SignIns-Last24h-&lt;stamp&gt;.json">
-        <rect x="289" y="1018" width="654" height="64" rx="13" fill="#0f1626" stroke="#82433f"/>
-        <rect x="306" y="1031" width="62" height="25" rx="12.5" fill="#2a181c" stroke="#ff7b72"/>
-        <text x="337" y="1048" fill="#ff7b72" font-size="11.5" font-weight="800" text-anchor="middle">LOCAL</text>
-        <text x="381" y="1046" fill="#e6edf3" font-size="14" font-family="'Cascadia Code','Consolas',monospace">JWT &#8594; clipboard (optional .jwt) &#183; response &#8594;</text>
-        <text x="381" y="1068" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">SignIns-Last24h-&lt;stamp&gt;.json</text>
-        <path d="M 210 1099 H 971 V 1134 H 220" fill="none" stroke="#ff7b72" stroke-width="2.1" marker-end="url(#arrow-coral)"/>
-      </g>
+      <rect x="289" y="1018" width="654" height="64" rx="13" fill="#0f1626" stroke="#284f78"/>
+      <rect x="306" y="1031" width="62" height="25" rx="12.5" fill="#111f34" stroke="#58a6ff"/>
+      <text x="337" y="1048" fill="#58a6ff" font-size="11.5" font-weight="800" text-anchor="middle">LOCAL</text>
+      <text x="381" y="1046" fill="#e6edf3" font-size="14" font-family="'Cascadia Code','Consolas',monospace">JWT &#8594; clipboard (optional .jwt) &#183; response &#8594;</text>
+      <text x="381" y="1068" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">SignIns-Last24h-&lt;stamp&gt;.json</text>
 
-      <rect x="67" y="1109" width="235" height="29" rx="14.5" fill="#111a29" stroke="#3fb950"/>
-      <circle cx="87" cy="1123.5" r="4" fill="#3fb950"/>
-      <text x="101" y="1128" fill="#c9d1d9" font-size="12.5" font-family="'Cascadia Code','Consolas',monospace">JWT copied &#183; JSON saved</text>
+      <!-- self-message loop on the PowerShell lifeline -->
+      <path d="M 210 1097 H 262 V 1132 H 214" fill="none" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+      <rect x="289" y="1100" width="235" height="29" rx="14.5" fill="#111a29" stroke="#284f78"/>
+      <circle cx="309" cy="1114.5" r="4" fill="#3fb950"/>
+      <text x="323" y="1119" fill="#c9d1d9" font-size="12.5" font-family="'Cascadia Code','Consolas',monospace">JWT copied &#183; JSON saved</text>
     </g>
 
-    <rect x="30" y="1172" width="1340" height="48" rx="13" fill="url(#footer-fill)" stroke="#2dd4bf"/>
-    <circle cx="54" cy="1196" r="5" fill="#2dd4bf"/>
-    <text x="70" y="1201" fill="#c9d1d9" font-size="14.5">Discover &#8594; prove with secret or training cert &#8594; copy JWT &#8594; call Graph &#8594; persist <tspan fill="#3fb950" font-weight="750">readable JSON</tspan></text>
+    <!-- ===== Footer ===== -->
+    <rect x="30" y="1172" width="1340" height="48" rx="13" fill="url(#footer-fill)" stroke="#284f78"/>
+    <circle cx="54" cy="1196" r="5" fill="#58a6ff"/>
+    <text x="70" y="1201" fill="#c9d1d9" font-size="14.5">Discover &#8594; prove with secret or training cert &#8594; copy JWT &#8594; call Graph &#8594; persist <tspan fill="#e6edf3" font-weight="750">readable JSON</tspan></text>
     <text x="1363" y="1235" fill="#4f6383" font-size="10.5" font-family="'Cascadia Code','Consolas',monospace" text-anchor="end">REST APIs &#183; JSON &#183; Microsoft Graph Security API</text>
   </g>
 </svg>

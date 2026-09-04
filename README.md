@@ -196,7 +196,7 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 
 ## Trace a Secret-mode token
 
-Secret mode prints the case-sensitive `unique-per-token (uti)` value after Entra ID mints the access token. In **Microsoft Sentinel → DIBSecCom → Logs**, replace the placeholder below with that value to join the service-principal token issuance event to every Microsoft Graph request made with the token:
+Secret mode prints the case-sensitive `unique-per-token (uti)` value after Entra ID mints the access token. In **Microsoft Defender XDR → Hunting → Advanced hunting**, select the **DIBSecCom** Log Analytics workspace, then replace the placeholder below with that value to join the service-principal token issuance event to every Microsoft Graph request made with the token:
 
 ```kusto
 let uti = "PASTE-UTI-FROM-SCRIPT";

@@ -7,5 +7,13 @@ SignIns-*.json
 # Opt-in bearer-token captures
 *.jwt
 
+# Certificate and private-key artifacts stay outside the repository
+*.cer
+*.crt
+*.pfx
+*.p12
+*.pem
+*.key
+
 # VS Code workspace settings
 .vscode/

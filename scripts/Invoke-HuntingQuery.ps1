@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 7.3
 <#
 .SYNOPSIS
     Runs a Microsoft Defender XDR advanced hunting query through the Microsoft Graph Security API
@@ -9,16 +9,23 @@
     Every REST concept is called out in the comments: verb, URI, headers, body, status code,
     response headers, response body (JSON) -> PowerShell objects -> JSON file.
 
-    Two ways to authenticate - run both so learners experience the difference:
+    Three ways to authenticate - run each so learners experience the difference:
 
       AppOnly    OAuth 2.0 client-credentials flow, done by hand with Invoke-RestMethod so you can see the
                  token request as a REST call. Uses the app registration created by New-HuntingAppRegistration.ps1
                  (Application permission ThreatHunting.Read.All + tenant-wide admin consent + 12-month secret).
                  No user is involved; the token carries a "roles" claim.
 
-      Delegated  Interactive sign-in through the Microsoft Graph PowerShell SDK (Connect-MgGraph) requesting
-                 the delegated scope ThreatHunting.Read.All. The first run in a tenant shows the consent prompt
-                 (admin consent required); the token carries an "scp" claim. Needs Microsoft.Graph.Authentication.
+    Delegated  Interactive sign-in through Windows Web Account Manager (WAM), requesting the delegated scope
+             ThreatHunting.Read.All with the public client. No certificate or client secret is used. The token
+             carries an "scp" claim and user claims. Needs Microsoft.Graph.Authentication and Windows 10+.
+
+            Certificate  OAuth 2.0 client-credentials flow using the training-only self-signed certificate
+                                     created by New-HuntingAppRegistration.ps1. No user is involved; the token carries a "roles" claim.
+
+        Before authentication, the script clears the clipboard and transient demo-token variables. After authentication,
+        the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. -TokenOutFile optionally
+        writes the same complete JWT to disk.
 
     Endpoints are NOT hard-coded. Resolution order:
       1. -Environment Public | AzureGov, when given (URLs pulled from Get-MgEnvironment when the SDK is present).
@@ -34,13 +41,16 @@
     account, from the EntraIdSignInEvents table (requires Microsoft Entra ID P2).
 
 .PARAMETER AuthMode
-    AppOnly (default) or Delegated.
+    AppOnly (default), Certificate, or Delegated.
 .PARAMETER TenantId
     Directory (tenant) ID or verified domain. Required for AppOnly unless present in the settings file.
 .PARAMETER ClientId
     Application (client) ID. Required for AppOnly unless present in the settings file.
 .PARAMETER ClientSecret
     Client secret as a SecureString. If omitted, $env:HUNT_CLIENT_SECRET is used, otherwise you are prompted.
+.PARAMETER CertificateThumbprint
+    Thumbprint of a certificate with a private key in Cert:\CurrentUser\My. Defaults to the training certificate
+    recorded in HuntingDemo.settings.json by New-HuntingAppRegistration.ps1.
 .PARAMETER Environment
     Public or AzureGov. Optional override - when omitted the cloud is discovered from the tenant.
 .PARAMETER Hours
@@ -50,7 +60,8 @@
 .PARAMETER OutFile
     Output path. Default: .\SignIns-Last<Hours>h-<yyyyMMdd-HHmm>.json
 .PARAMETER TokenOutFile
-    Optional path for the raw JWT access token. Treat this file as a bearer credential and delete it after the demo.
+    Optional path for the complete raw JWT access token. The JWT is always copied to the clipboard whether or not
+    this parameter is supplied.
 .PARAMETER SettingsFile
     Settings JSON written by New-HuntingAppRegistration.ps1. Default: HuntingDemo.settings.json next to this script.
 
@@ -60,6 +71,8 @@
     .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -Hours 24
 .EXAMPLE
     .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt
+.EXAMPLE
+    .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate -TokenOutFile .\certificate-token.jwt
 .EXAMPLE
     .\scripts\Invoke-HuntingQuery.ps1 -AuthMode AppOnly -TenantId <guid> -ClientId <guid> -Environment AzureGov
 
@@ -74,7 +87,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('AppOnly', 'Delegated')]
+    [ValidateSet('AppOnly', 'Certificate', 'Delegated')]
     [string] $AuthMode = 'AppOnly',
 
     [string] $TenantId,
@@ -82,6 +95,8 @@ param(
     [string] $ClientId,
 
     [securestring] $ClientSecret,
+
+    [string] $CertificateThumbprint,
 
     [ValidateSet('Public', 'AzureGov')]
     [string] $Environment,
@@ -109,6 +124,7 @@ if (Test-Path -Path $SettingsFile) {
     if (-not $TenantId    -and $settings.tenantId)    { $TenantId    = $settings.tenantId }
     if (-not $ClientId    -and $settings.clientId)    { $ClientId    = $settings.clientId }
     if (-not $Environment -and $settings.environment) { $Environment = $settings.environment }
+    if (-not $CertificateThumbprint -and $settings.certificateThumbprint) { $CertificateThumbprint = $settings.certificateThumbprint }
     Write-Host "Defaults loaded from $SettingsFile" -ForegroundColor DarkGray
 }
 
@@ -116,24 +132,108 @@ if (Test-Path -Path $SettingsFile) {
 # 1. Endpoints. REST = resources named by URIs; the host depends on the cloud, the path does not.
 #    Order: explicit -Environment -> OpenID discovery for the tenant (GET, anonymous, JSON) -> Public.
 # ------------------------------------------------------------------------------------------------
-function Save-DemoAccessToken {
+function Reset-DemoTokenState {
+    $variableNames = @(
+        'accessToken', 'jwt', 'token', 'tokenResponse', 'tokenResult', 'certificateTokenResult',
+        'header', 'payload', 'claims', 'parts', 'secureToken'
+    )
+    foreach ($variableName in $variableNames) {
+        Remove-Variable -Name $variableName -Scope 1 -Force -ErrorAction SilentlyContinue
+    }
+    Set-Clipboard -Value ([string]::Empty)
+}
+
+function ConvertTo-DemoSecureString {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Value
+    )
+
+    $secureValue = [securestring]::new()
+    foreach ($character in $Value.ToCharArray()) { $secureValue.AppendChar($character) }
+    $secureValue.MakeReadOnly()
+    $secureValue
+}
+
+function Import-DemoMsal {
+    if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
+        throw "$AuthMode mode needs the Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication -Scope CurrentUser"
+    }
+    Import-Module Microsoft.Graph.Authentication
+
+    $graphAuthModule = Get-Module -Name Microsoft.Graph.Authentication
+    $msalPath = Join-Path $graphAuthModule.ModuleBase 'Dependencies\Core\Microsoft.Identity.Client.dll'
+    if (-not (Test-Path -LiteralPath $msalPath)) {
+        $msalPath = Get-ChildItem -Path $graphAuthModule.ModuleBase -Recurse -File -Filter 'Microsoft.Identity.Client.dll' |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
+    if (-not $msalPath) { throw 'Microsoft.Identity.Client.dll was not found in the Microsoft.Graph.Authentication module.' }
+    if (-not ('Microsoft.Identity.Client.PublicClientApplicationBuilder' -as [type])) { Add-Type -Path $msalPath }
+
+    $brokerPath = Get-ChildItem -Path $graphAuthModule.ModuleBase -Recurse -File -Filter 'Microsoft.Identity.Client.Broker.dll' |
+        Select-Object -First 1 -ExpandProperty FullName
+    if (-not $brokerPath) { throw 'Microsoft.Identity.Client.Broker.dll was not found in the Microsoft.Graph.Authentication module.' }
+    if (-not ('Microsoft.Identity.Client.Broker.BrokerExtension' -as [type])) { Add-Type -Path $brokerPath }
+
+    if (-not ('HuntingDemoWindow' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class HuntingDemoWindow
+{
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetConsoleWindow();
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern IntPtr GetAncestor(IntPtr window, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    public static IntPtr GetConsoleOrTerminalWindow()
+    {
+        IntPtr consoleWindow = GetConsoleWindow();
+        IntPtr rootOwner = consoleWindow == IntPtr.Zero ? IntPtr.Zero : GetAncestor(consoleWindow, 3);
+        return rootOwner == IntPtr.Zero ? GetForegroundWindow() : rootOwner;
+    }
+}
+'@
+    }
+}
+
+function Publish-DemoAccessToken {
     param(
         [Parameter(Mandatory)]
         [string] $AccessToken,
 
-        [Parameter(Mandatory)]
         [string] $Path
     )
 
-    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-    $parentPath = Split-Path -Path $resolvedPath -Parent
-    if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
-        throw "Token output directory does not exist: $parentPath"
+    Set-Clipboard -Value ([string]::Empty)
+
+    Set-Clipboard -Value $AccessToken
+    $clipboardValue = (Get-Clipboard -Raw).TrimEnd([char[]] "`r`n")
+    if ($clipboardValue -cne $AccessToken) { throw 'The complete JWT could not be verified on the clipboard.' }
+    Write-Host "Complete JWT copied to clipboard ($($AccessToken.Length) characters) for https://jwt.ms" -ForegroundColor Yellow
+
+    if ($Path) {
+        try {
+            $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+            $parentPath = Split-Path -Path $resolvedPath -Parent
+            if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
+                throw "Token output directory does not exist: $parentPath"
+            }
+
+            [System.IO.File]::WriteAllText($resolvedPath, $AccessToken, [System.Text.UTF8Encoding]::new($false))
+            Write-Host "Complete JWT saved -> $resolvedPath" -ForegroundColor Yellow
+        }
+        catch {
+            Write-Warning "The complete JWT is on the clipboard, but -TokenOutFile could not be written: $($_.Exception.Message)"
+        }
     }
 
-    [System.IO.File]::WriteAllText($resolvedPath, $AccessToken, [System.Text.UTF8Encoding]::new($false))
-    Write-Host "JWT saved -> $resolvedPath" -ForegroundColor Yellow
-    Write-Warning 'The JWT is a bearer credential. Do not share or commit it; delete it after the demo.'
+    Write-Warning 'The clipboard now contains a bearer credential. Clear it when the workshop is finished.'
 }
 
 function Resolve-DemoEndpoints {
@@ -231,6 +331,9 @@ Write-Host "Cloud     : $($ep.Environment) ($($ep.MgEnvironment))  |  token: $($
 Write-Host "POST $uri" -ForegroundColor Cyan
 Write-Host "Timespan $timespan  |  KQL window: last $Hours h  |  Auth: $AuthMode`n" -ForegroundColor DarkGray
 
+Reset-DemoTokenState
+Write-Host 'Clipboard and transient demo-token variables reset.' -ForegroundColor DarkGray
+
 $response = $null
 $status   = $null
 $hdrs     = $null
@@ -258,10 +361,15 @@ try {
             $tokenResponse = Invoke-RestMethod -Method Post -Uri $ep.TokenEndpoint -Body $form   # POST default = form-encoded (correct here)
 
             # The JSON answer is already deserialized: access_token (JWT), token_type (Bearer), expires_in (seconds)
-            $token = ConvertTo-SecureString -String $tokenResponse.access_token -AsPlainText -Force
+            $accessToken = $tokenResponse.access_token
+            $token = ConvertTo-DemoSecureString -Value $accessToken
             Write-Host ("Token acquired: type={0}, expires in {1}s  (paste into https://jwt.ms to see aud / roles / exp)" -f $tokenResponse.token_type, $tokenResponse.expires_in) -ForegroundColor Green
-            if ($TokenOutFile) { Save-DemoAccessToken -AccessToken $tokenResponse.access_token -Path $TokenOutFile }
+            Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
             $form.Clear()                                                 # drop the plain-text secret as soon as possible
+            $form = $null
+            $accessToken = $null
+            $tokenResponse = $null
+            $ClientSecret = $null
 
             # ----------------------------------------------------------------------------------------
             # 4a. Call Microsoft Graph - every switch explained.
@@ -282,51 +390,93 @@ try {
             $response = Invoke-RestMethod @call                           # splatting: one hashtable = all the switches
         }
 
+        'Certificate' {
+            # ----------------------------------------------------------------------------------------
+            # 3b/4b. App-only client credentials with the training certificate, then the same REST call.
+            # ----------------------------------------------------------------------------------------
+            if (-not $TenantId -or -not $ClientId) {
+                throw 'Certificate mode needs -TenantId and -ClientId (or HuntingDemo.settings.json from New-HuntingAppRegistration.ps1).'
+            }
+            if (-not $CertificateThumbprint) {
+                throw 'Certificate mode needs -CertificateThumbprint or a training certificate recorded in HuntingDemo.settings.json.'
+            }
+
+            $certificateStore = if ($settings -and $settings.certificateStore) { $settings.certificateStore } else { 'Cert:\CurrentUser\My' }
+            $certificatePath = Join-Path -Path $certificateStore -ChildPath $CertificateThumbprint
+            $certificate = Get-Item -LiteralPath $certificatePath -ErrorAction Stop
+            if (-not $certificate.HasPrivateKey) { throw "Certificate $CertificateThumbprint does not have a private key." }
+            if ($certificate.NotBefore.ToUniversalTime() -gt [datetime]::UtcNow -or $certificate.NotAfter.ToUniversalTime() -le [datetime]::UtcNow) {
+                throw "Certificate $CertificateThumbprint is not currently valid. Valid UTC: $($certificate.NotBefore.ToUniversalTime().ToString('u')) through $($certificate.NotAfter.ToUniversalTime().ToString('u'))."
+            }
+
+            Import-DemoMsal
+            $authority = "$(($ep.LoginHost).TrimEnd('/'))/$TenantId"
+            $confidentialClient = [Microsoft.Identity.Client.ConfidentialClientApplicationBuilder]::Create($ClientId).WithAuthority($authority).WithCertificate($certificate).Build()
+            $certificateTokenRequest = $confidentialClient.AcquireTokenForClient([string[]] @("$($ep.GraphHost)/.default"))
+            $certificateTokenResult = $certificateTokenRequest.ExecuteAsync().ConfigureAwait($false).GetAwaiter().GetResult()
+
+            $accessToken = $certificateTokenResult.AccessToken
+            $token = ConvertTo-DemoSecureString -Value $accessToken
+            Write-Host ("Token acquired with certificate {0}; expires {1:u}" -f $certificate.Thumbprint, $certificateTokenResult.ExpiresOn.UtcDateTime) -ForegroundColor Green
+            Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
+            $accessToken = $null
+            $certificateTokenResult = $null
+            $certificateTokenRequest = $null
+            $confidentialClient = $null
+
+            $call = @{
+                Method                  = 'Post'
+                Uri                     = $uri
+                Authentication          = 'Bearer'
+                Token                   = $token
+                ContentType             = 'application/json; charset=utf-8'
+                Body                    = $body
+                StatusCodeVariable      = 'status'
+                ResponseHeadersVariable = 'hdrs'
+                SkipHttpErrorCheck      = $true
+                MaximumRetryCount       = 2
+                RetryIntervalSec        = 5
+            }
+            $response = Invoke-RestMethod @call
+        }
+
         'Delegated' {
             # ----------------------------------------------------------------------------------------
-            # 3b/4b. Interactive sign-in via the Graph PowerShell SDK, then the same REST call.
+            # 3c/4c. Interactive sign-in via MSAL and the Graph PowerShell SDK, then the same REST call.
             # First run in a tenant triggers the consent prompt; an admin must consent (or pre-consent).
             # ----------------------------------------------------------------------------------------
-            if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
-                throw 'Delegated mode needs the Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication -Scope CurrentUser'
+            if (-not $TenantId -or -not $ClientId) {
+                throw 'Delegated mode needs -TenantId and -ClientId (or HuntingDemo.settings.json from New-HuntingAppRegistration.ps1 -IncludeDelegatedScope).'
             }
-            Import-Module Microsoft.Graph.Authentication
+            Import-DemoMsal
 
+            Set-MgGraphOption -DisableLoginByWAM $false
+            $authority = "$(($ep.LoginHost).TrimEnd('/'))/$TenantId"
+            $brokerOptions = [Microsoft.Identity.Client.BrokerOptions]::new(
+                [Microsoft.Identity.Client.BrokerOptions+OperatingSystems]::Windows
+            )
+            $brokerOptions.Title = 'Graph Security API Hunting Demo - Delegated TRAINING'
+            $builder = [Microsoft.Identity.Client.PublicClientApplicationBuilder]::Create($ClientId).
+                WithAuthority($authority).
+                WithDefaultRedirectUri().
+                WithParentActivityOrWindow([Func[IntPtr]] { [HuntingDemoWindow]::GetConsoleOrTerminalWindow() })
+            $builder = [Microsoft.Identity.Client.Broker.BrokerExtension]::WithBroker($builder, $brokerOptions)
+            $publicClient = $builder.Build()
+            $interactive = $publicClient.AcquireTokenInteractive([string[]] @('ThreatHunting.Read.All')).WithPrompt([Microsoft.Identity.Client.Prompt]::SelectAccount)
+            Write-Host 'Opening Windows Web Account Manager for delegated sign-in and JWT capture ...' -ForegroundColor Cyan
+            $tokenResult = $interactive.ExecuteAsync().ConfigureAwait($false).GetAwaiter().GetResult()
+
+            $signedInAccount = $tokenResult.Account.Username
+            $signedInScopes = $tokenResult.Scopes
+            $accessToken = $tokenResult.AccessToken
+            Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
+            $token = ConvertTo-DemoSecureString -Value $accessToken
+            Connect-MgGraph -AccessToken $token -Environment $ep.MgEnvironment -NoWelcome
+            $accessToken = $null
             $tokenResult = $null
-            if ($TokenOutFile) {
-                if (-not $TenantId -or -not $ClientId) {
-                    throw 'Delegated token capture needs -TenantId and -ClientId (or HuntingDemo.settings.json from New-HuntingAppRegistration.ps1 -IncludeDelegatedScope).'
-                }
-
-                # Graph Authentication bundles MSAL but does not expose its token through Get-MgContext.
-                $graphAuthModule = Get-Module -Name Microsoft.Graph.Authentication
-                $msalPath = Join-Path $graphAuthModule.ModuleBase 'Dependencies\Core\Microsoft.Identity.Client.dll'
-                if (-not (Test-Path -LiteralPath $msalPath)) {
-                    $msalPath = Get-ChildItem -Path $graphAuthModule.ModuleBase -Recurse -File -Filter 'Microsoft.Identity.Client.dll' |
-                        Select-Object -First 1 -ExpandProperty FullName
-                }
-                if (-not $msalPath) { throw 'Microsoft.Identity.Client.dll was not found in the Microsoft.Graph.Authentication module.' }
-                if (-not ('Microsoft.Identity.Client.PublicClientApplicationBuilder' -as [type])) { Add-Type -Path $msalPath }
-
-                $authority = "$(($ep.LoginHost).TrimEnd('/'))/$TenantId"
-                $builder = [Microsoft.Identity.Client.PublicClientApplicationBuilder]::Create($ClientId).WithAuthority($authority).WithRedirectUri('http://localhost')
-                $publicClient = $builder.Build()
-                $interactive = $publicClient.AcquireTokenInteractive([string[]] @('ThreatHunting.Read.All')).WithPrompt([Microsoft.Identity.Client.Prompt]::SelectAccount)
-                Write-Host 'Opening the browser for delegated sign-in and JWT capture ...' -ForegroundColor Cyan
-                $tokenResult = $interactive.ExecuteAsync().ConfigureAwait($false).GetAwaiter().GetResult()
-
-                Save-DemoAccessToken -AccessToken $tokenResult.AccessToken -Path $TokenOutFile
-                $token = [securestring]::new()
-                foreach ($character in $tokenResult.AccessToken.ToCharArray()) { $token.AppendChar($character) }
-                $token.MakeReadOnly()
-                Connect-MgGraph -AccessToken $token -Environment $ep.MgEnvironment -NoWelcome
-            }
-            else {
-                $connect = @{ Scopes = 'ThreatHunting.Read.All'; Environment = $ep.MgEnvironment; NoWelcome = $true }
-                if ($TenantId) { $connect.TenantId = $TenantId }
-                if ($settings -and $settings.delegatedScope -and $ClientId) { $connect.ClientId = $ClientId }   # our own app, if it was set up for delegated use
-                Connect-MgGraph @connect
-            }
+            $interactive = $null
+            $publicClient = $null
+            $builder = $null
 
             # The signed-in context is the authority on which cloud we are in - re-read the Graph host from it.
             $ctx = Get-MgContext
@@ -337,8 +487,6 @@ try {
                 $ep.Source    = "Get-MgContext ($mgEnvName) -> Get-MgEnvironment"
                 $uri = "$($ep.GraphHost)/v1.0/security/runHuntingQuery"
             }
-            $signedInAccount = if ($tokenResult -and $tokenResult.Account) { $tokenResult.Account.Username } else { $ctx.Account }
-            $signedInScopes = if ($tokenResult -and $tokenResult.Scopes) { $tokenResult.Scopes } else { $ctx.Scopes }
             Write-Host ("Signed in as {0}  |  environment {1}  |  scopes: {2}" -f $signedInAccount, $mgEnvName, ($signedInScopes -join ', ')) -ForegroundColor Green
 
             # Invoke-MgGraphRequest = Invoke-RestMethod with the token handled by MSAL. Same verb, URI and body.
@@ -360,6 +508,21 @@ catch {
     else { Write-Host $_.Exception.Message }
     Write-Host "`n401 = no/invalid token   403 = token lacks ThreatHunting.Read.All (admin consent?)   429 = throttled (Retry-After)" -ForegroundColor DarkGray
     exit 1
+}
+finally {
+    if ($token -is [System.IDisposable]) { $token.Dispose() }
+    if ($certificate -is [System.IDisposable]) { $certificate.Dispose() }
+    $accessToken = $null
+    $token = $null
+    $tokenResponse = $null
+    $tokenResult = $null
+    $certificateTokenResult = $null
+    $certificateTokenRequest = $null
+    $confidentialClient = $null
+    $publicClient = $null
+    $interactive = $null
+    $builder = $null
+    $certificate = $null
 }
 
 # ------------------------------------------------------------------------------------------------

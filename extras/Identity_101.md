@@ -66,6 +66,8 @@ $headers = @{
 
 `ThreatHunting.Read.All` is available as both an application and delegated permission. When using client ID and client secret authentication, ensure that it is selected under **Application permissions**, rather than only under Delegated permissions, and that tenant admin consent has been granted.
 
+In this workshop, delegated mode uses Windows Web Account Manager (WAM) with the app registration's public-client broker redirect. It uses neither the training certificate nor the client secret; those credentials are exclusive to the two app-only demonstrations.
+
 ---
 
 ## 2. MSAL.PS versus the v2 Client-Credentials Endpoint
@@ -170,55 +172,44 @@ The OAuth flow remains an app-only client-credentials flow. The credential used 
 
 The app registration must still have the required Microsoft Graph **Application permissions**, such as `ThreatHunting.Read.All`, and those permissions must receive admin consent.
 
-### Create a Self-Signed Lab Certificate on Windows
+### Create the Workshop Certificate on Windows
 
-Run the following command on the workstation, using the account that will run the PowerShell script:
+The workshop setup creates and registers the certificate automatically:
 
 ```powershell
-$cert = New-SelfSignedCertificate `
-    -Subject "CN=Graph-AppOnly-Lab" `
-    -CertStoreLocation "Cert:\CurrentUser\My" `
-    -KeyExportPolicy Exportable `
-    -KeySpec Signature `
-    -KeyLength 2048 `
-    -KeyAlgorithm RSA `
-    -HashAlgorithm SHA256 `
-    -NotAfter (Get-Date).AddYears(1)
-
-# Export ONLY the public certificate for upload to Entra ID.
-Export-Certificate `
-    -Cert $cert `
-    -FilePath "$PWD\Graph-AppOnly-Lab.cer"
-
-$cert.Thumbprint
+.\scripts\New-HuntingAppRegistration.ps1 `
+        -IncludeDelegatedScope `
+    -CertificateValidityMonths 12
 ```
 
-This produces the following:
+The script uses .NET `CertificateRequest` to create an RSA-2048/SHA-256 self-signed certificate in memory. It then imports the key as non-exportable and copies the certificate into Current User > Personal through .NET `X509Store.Add()`.
 
-- A certificate and **private key** in the user’s Personal certificate store:
+The certificate name is intentionally readable and matches the app registration:
 
-  ```text
-  Cert:\CurrentUser\My
-  ```
+```text
+Graph Security API - Hunting Demo - <alias> - <suffix> - TRAINING
+```
 
-- A public-key-only certificate file:
+The console’s **TRAINING ONLY CERTIFICATE DETAILS** block supplies exact correlation:
 
-  ```text
-  Graph-AppOnly-Lab.cer
-  ```
+- App registration display name
+- Application (client) ID
+- Application object ID
+- Tenant ID
+- Certificate subject, friendly name, key ID and thumbprints
+- `Cert:\CurrentUser\My` store location and 12-month validity (adjustable from 1–24 months)
+- `TRAINING ONLY - SELF-SIGNED - NOT FOR PRODUCTION` purpose
 
-### Upload the Public Certificate to Entra ID
+The script sends only the Base64 public certificate to `PATCH /applications/{id}` as an `AsymmetricX509Cert` / `Verify` key credential. It does not export a `.cer` or `.pfx`, write a private key to disk, or place private-key material in `HuntingDemo.settings.json`; common certificate and key extensions are also Git-ignored.
 
-1. Open the **Microsoft Entra admin center**.
-2. Go to **App registrations**.
-3. Select the target application registration.
-4. Select **Certificates & secrets**.
-5. Select the **Certificates** tab.
-6. Select **Upload certificate**.
-7. Upload `Graph-AppOnly-Lab.cer`.
-8. Confirm that the displayed thumbprint and expiration date match the local certificate.
+### Confirm the Registered Public Certificate
 
-> Do not upload or distribute the private-key certificate, normally a `.pfx` file, to Entra ID. Entra ID needs only the public certificate. The workload needs the private key.
+1. Open **Microsoft Entra admin center** > **App registrations**.
+2. Select the matching `Graph Security API - Hunting Demo - ...` app.
+3. Select **Certificates & secrets** > **Certificates**.
+4. Match `<app registration name> - TRAINING`, its thumbprint and expiration to the setup output.
+
+> Entra ID receives only the public certificate. The workload’s non-exportable private key remains in the local Current User certificate store for this workshop.
 
 ### Where to Install the Certificate
 
@@ -248,37 +239,26 @@ For production, use an organization-approved PKI and certificate lifecycle/renew
 
 ### Authenticate to Microsoft Graph with a Certificate
 
-Use the certificate thumbprint because it uniquely identifies the local certificate:
+The demo reads the correlated thumbprint from `HuntingDemo.settings.json` and copies the complete resulting JWT to the clipboard:
 
 ```powershell
-$tenantId = "<tenant-id>"
-$clientId = "<app-registration-client-id>"
-$thumbprint = "<certificate-thumbprint>"
-
-Connect-MgGraph `
-    -TenantId $tenantId `
-    -ClientId $clientId `
-    -CertificateThumbprint $thumbprint `
-    -NoWelcome
-
-Get-MgContext
+.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate
 ```
 
-A successful connection should indicate:
+A successful certificate token is app-only and contains:
 
 ```text
-AuthType : AppOnly
+roles: [ "ThreatHunting.Read.All" ]
 ```
 
-Example Graph request:
+The certificate changes how the app proves its identity, not the app identity, permission, token audience, or `roles` claim. Paste the clipboard directly into <https://jwt.ms> to compare it with the secret-based app-only token.
+
+Override the stored thumbprint only when needed:
 
 ```powershell
-Invoke-MgGraphRequest `
-    -Method POST `
-    -Uri "https://graph.microsoft.com/v1.0/security/runHuntingQuery" `
-    -Body @{
-        Query = "DeviceEvents | take 10"
-    }
+.\scripts\Invoke-HuntingQuery.ps1 `
+    -AuthMode Certificate `
+    -CertificateThumbprint '<thumbprint>'
 ```
 
 ---

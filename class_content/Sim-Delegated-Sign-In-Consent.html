@@ -402,7 +402,7 @@ body{
       <g class="zone" id="z-client">
         <rect class="zbg" x="8" y="14" width="233.8" height="358" rx="12"/>
         <text class="zlabel" x="24" y="40">The user</text>
-        <text class="zsub" x="24" y="56">PowerShell 7 + browser</text>
+        <text class="zsub" x="24" y="56">PowerShell 7 + Windows WAM</text>
       </g>
       <g class="zone z-blue" id="z-entra">
         <rect class="zbg" x="253.8" y="14" width="376.2" height="358" rx="12"/>
@@ -457,11 +457,11 @@ body{
       <g class="snum" data-step="13" transform="translate(147,276)"><circle r="12"/><text>13</text></g>
 
       <!-- ===== nodes ===== -->
-      <g class="node round" id="n-browser" data-node tabindex="0" role="button" aria-label="Browser">
+      <g class="node round" id="n-browser" data-node tabindex="0" role="button" aria-label="Windows Web Account Manager">
         <foreignObject x="24" y="66" width="150" height="76">
           <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
-            <span class="nname">Browser</span>
-            <span class="nsub">sign-in &middot; MFA</span>
+            <span class="nname">Windows WAM</span>
+            <span class="nsub">account broker &middot; MFA</span>
             <span class="nsub"><b>consent prompt</b></span>
           </div>
         </foreignObject>
@@ -470,7 +470,7 @@ body{
         <foreignObject x="24" y="166" width="202" height="96">
           <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
             <span class="nname">PowerShell 7</span>
-            <span class="nsub">Connect-MgGraph (MSAL)</span>
+            <span class="nsub">MSAL + WAM broker</span>
             <span class="nsub">acts <b>as the user</b></span>
           </div>
         </foreignObject>
@@ -497,8 +497,8 @@ body{
           <div class="shell" xmlns="http://www.w3.org/1999/xhtml">
             <span class="ntag">TOKEN ENDPOINT</span>
             <span class="nname mono">/oauth2/v2.0/token</span>
-            <span class="nsub">code + PKCE &rarr; JWT with <b>scp</b></span>
-            <span class="nsub">refresh token for the session</span>
+            <span class="nsub">brokered user auth &rarr; JWT with <b>scp</b></span>
+            <span class="nsub"><b>no certificate or client secret</b></span>
           </div>
         </foreignObject>
       </g>
@@ -605,7 +605,7 @@ const CONFIG = {
      metrics   replace · label/value/delta rows, {label,value,delta,tone}
    ============================================================ */
 const PANELS = [
-  {id:'chat', type:'chat', weight:26, title:'pwsh + browser', sub:'what the user sees', empty:''},
+  {id:'chat', type:'chat', weight:26, title:'pwsh + WAM', sub:'what the user sees', empty:''},
   {id:'insp', type:'inspector', weight:40, title:'ON THE WIRE', sub:'request / response, right now'},
   {id:'code', type:'code', weight:34, title:'POWERSHELL 7', sub:'Graph PowerShell SDK', empty:'The code appears as each call is made.'}
 ];
@@ -631,43 +631,49 @@ const PANELS = [
 const STEPS = [
   { n:1, node:'n-pwsh', edge:null, zones:['z-client'], tone:'az', pkt:'RUN', dur:600,
     chat:[{who:'user', type:true, t:'.\\Invoke-HuntingQuery.ps1 -AuthMode Delegated -Hours 24'},
-      {who:'sys', t:'Endpoints : OpenID discovery &rarr; Global &middot; graph.microsoft.com'}],
-    inspector:{tone:'note', toneLabel:'DELEGATED · SETUP', title:'What Connect-MgGraph is about to ask for',
+      {who:'sys', t:'Endpoints : OpenID discovery &rarr; Global &middot; graph.microsoft.com'},
+      {who:'sys', t:'Clipboard and transient demo-token variables reset.'}],
+    inspector:{tone:'note', toneLabel:'DELEGATED · SETUP', title:'What the custom training public client is about to ask for',
       rows:[
       {sec:'the client'},
-      {t:'Microsoft Graph Command Line Tools &mdash; the SDK\'s public client (no secret)'},
-      {t:'redirect_uri : http://localhost:&lt;port&gt; &mdash; MSAL listens there'},
+      {t:'Graph Security API - Hunting Demo - admin - A1B2C3 (public client)'},
+      {t:'broker redirect : ms-appx-web://microsoft.aad.brokerplugin/11111111-2222-3333-4444-555555555555'},
       {sec:'the scopes'},
       {t:'ThreatHunting.Read.All', k:true},
-      {t:'openid &middot; profile &middot; offline_access (added by MSAL)'},
+      {t:'openid &middot; profile (added by MSAL)'},
+      {sec:'credentials not used'},
+      {t:'client secret : none &middot; certificate : none', k:true},
       {sec:'the environment'},
       {t:'Global &mdash; from -Environment or discovery; re-read from Get-MgContext after sign-in'}],
       note:'Delegated = the app acts as the signed-in user. It will never see more than that user could.'},
     code:{title:'Invoke-HuntingQuery.ps1 · -AuthMode Delegated', numbers:false, lines:[
-      {t:'Import-Module Microsoft.Graph.Authentication'},
-      {t:'$connect = @{ Scopes = \'ThreatHunting.Read.All\'; Environment = $ep.MgEnvironment; NoWelcome = $true }', hl:true},
-      {t:'if ($TenantId) { $connect.TenantId = $TenantId }'},
-      {t:'Connect-MgGraph @connect', hl:true},
-      {t:'<span class="cm"># -Scopes = the delegated permissions to request · -Environment Global | USGov | USGovDoD</span>'}]}
+      {t:'Reset-DemoTokenState<span class="cm">  # old JWT variables + clipboard cleared</span>', hl:true},
+      {t:'Import-DemoMsal<span class="cm">       # MSAL bundled with Graph Authentication</span>'},
+      {t:'$builder = [PublicClientApplicationBuilder]::Create($ClientId).WithDefaultRedirectUri()'},
+      {t:'$builder = [BrokerExtension]::WithBroker($builder, [BrokerOptions]::new(\'Windows\'))', hl:true},
+      {t:'$publicClient = $builder.Build()'},
+      {t:'$tokenResult = $publicClient.AcquireTokenInteractive(@(\'ThreatHunting.Read.All\')).ExecuteAsync().Result', hl:true},
+      {t:'Publish-DemoAccessToken $tokenResult.AccessToken<span class="cm">  # complete JWT → clipboard</span>', hl:true}]}
   },
 
   { n:2, node:'n-browser', edge:'e1', zones:['z-client'], tone:'az', pkt:'AUTH', dur:500,
-    chat:[{who:'sys', t:'Opening the browser for sign-in&hellip;'}],
-    inspector:{tone:'info', toneLabel:'MSAL · AUTHORIZATION REQUEST', title:'A URL, parameter by parameter',
+    chat:[{who:'sys', t:'Opening Windows Web Account Manager for delegated sign-in&hellip;'}],
+    inspector:{tone:'info', toneLabel:'MSAL · WINDOWS BROKER', title:'WAM presents accounts already known to Windows',
       rows:[
-      {t:'GET https://login.microsoftonline.com/contoso.onmicrosoft.com/oauth2/v2.0/authorize?', k:true},
-      {head:true, h1:'parameter', h2:'means', h3:'value'},
-      {from:'client_id', field:'which app', to:'Graph Command Line Tools'},
-      {from:'response_type', field:'what back', to:'code'},
-      {from:'redirect_uri', field:'where', to:'http://localhost:53242'},
-      {from:'scope', field:'how much', to:'ThreatHunting.Read.All openid profile offline_access'},
-      {from:'code_challenge', field:'PKCE', to:'S256 hash of a one-time verifier'}],
-      note:'Authorization code + PKCE: a public client proves possession without a secret.'},
+      {t:'broker : Windows Web Account Manager', k:true},
+      {t:'client_id : 11111111-2222-3333-4444-555555555555', k:true},
+      {t:'app display name : Graph Security API - Hunting Demo - admin - A1B2C3'},
+      {t:'authority : contoso tenant &middot; scope : ThreatHunting.Read.All'},
+      {t:'account picker : Windows work/school accounts + Add account'},
+      {t:'Windows Hello, FIDO, Conditional Access and MFA supported'},
+      {t:'app credential : none &mdash; this is a public-client user flow', k:true}],
+      note:'WAM is the Windows authentication broker. It authenticates the user; no certificate or client secret is sent.'},
     code:{title:'under the hood', numbers:false, lines:[
-      {t:'<span class="cm"># MSAL (inside Connect-MgGraph) builds the URL and opens the default browser</span>'},
-      {t:'<span class="cm"># it also starts a loopback HTTP listener on http://localhost:<port></span>'},
-      {t:'Connect-MgGraph -Scopes \'ThreatHunting.Read.All\' -UseDeviceAuthentication', hl:true},
-      {t:'<span class="cm">#   ← the alternative when no browser is available (jump box): device code flow</span>'}]}
+      {t:'$options = [BrokerOptions]::new([BrokerOptions+OperatingSystems]::Windows)'},
+      {t:'$builder = [BrokerExtension]::WithBroker($builder, $options)', hl:true},
+      {t:'$tokenResult = $publicClient.AcquireTokenInteractive(@(\'ThreatHunting.Read.All\')) `', hl:true},
+      {t:'  .WithPrompt([Prompt]::SelectAccount).ExecuteAsync().Result', hl:true},
+      {t:'<span class="cm"># no client_secret · no certificate · WAM owns user authentication</span>'}]}
   },
 
   { n:3, node:'n-authz', edge:'e2', zones:['z-client', 'z-entra'], tone:'az', pkt:'GET', dur:700,
@@ -680,7 +686,7 @@ const STEPS = [
       {t:'session : new sign-in event &mdash; this will itself be a row in EntraIdSignInEvents'}],
       note:'Authentication is done. Authorization — may this app act for this user with that scope? — comes next.'},
     code:{title:'nothing to write here', numbers:false, lines:[
-      {t:'<span class="cm"># the browser and Entra ID are talking; PowerShell is waiting on the loopback listener</span>'},
+      {t:'<span class="cm"># Windows WAM and Entra ID are authenticating the selected account</span>'},
       {t:'<span class="cm"># the sign-in you just did is the kind of event the query will return</span>'}]}
   },
 
@@ -689,7 +695,7 @@ const STEPS = [
       {who:'sys', t:'admin signs in &rarr; &#9745; Consent on behalf of your organization &rarr; Accept'}],
     inspector:{tone:'warn', toneLabel:'CONSENT CHECK', title:'Is there a grant for this app + this scope?',
       rows:[
-      {t:'lookup : oauth2PermissionGrant where clientId = SDK app SP, resourceId = Microsoft Graph SP'},
+      {t:'lookup : oauth2PermissionGrant where clientId = training app SP, resourceId = Microsoft Graph SP'},
       {t:'ThreatHunting.Read.All &middot; admin consent required : <b>Yes</b>', html:true},
       {t:'Alex is not an admin &rarr; prompt says Need admin approval (AADSTS65001) &rarr; no code', strike:true},
       {sec:'how the grant gets there'},
@@ -707,54 +713,53 @@ const STEPS = [
   },
 
   { n:5, node:'n-pwsh', edge:'e3', zones:['z-entra', 'z-client'], tone:'safe', pkt:'CODE', dur:800,
-    inspector:{tone:'safe', toneLabel:'302 · AUTHORIZATION CODE', title:'Back to localhost with a one-time code',
+    inspector:{tone:'safe', toneLabel:'WAM · USER AUTHENTICATED', title:'The broker completes user authentication',
       rows:[
-      {t:'HTTP 302 Found'},
-      {t:'Location: http://localhost:53242/?code=0.AXkA&hellip;&amp;state=&hellip;', k:true},
-      {t:'the browser follows the redirect &rarr; MSAL\'s loopback listener receives the code'},
-      {t:'code : single-use &middot; ~10 minutes &middot; bound to the PKCE verifier'}],
-      note:'The code is not a token. It is a claim ticket that only the holder of the PKCE verifier can redeem.'},
-    code:{title:'still MSAL', numbers:false, lines:[
-      {t:'<span class="cm"># loopback listener: GET /?code=…&state=… → \'Authentication complete. You can return to the application.\'</span>'},
-      {t:'<span class="cm"># MSAL now redeems the code — the next step</span>'}]}
+      {t:'account : alexw@contoso.com', k:true},
+      {t:'broker : Windows Web Account Manager'},
+      {t:'MFA / Conditional Access : satisfied'},
+      {t:'consent : ThreatHunting.Read.All granted for this public client'}],
+      note:'The broker keeps protocol details and refresh credentials out of the PowerShell script.'},
+    code:{title:'WAM returns control to MSAL', numbers:false, lines:[
+      {t:'<span class="cm"># AuthenticationResult includes Account, AccessToken, Scopes and ExpiresOn</span>'},
+      {t:'$tokenResult.Account.Username<span class="cm">  # alexw@contoso.com</span>', hl:true}]}
   },
 
   { n:6, node:'n-token', edge:'e4', zones:['z-client', 'z-entra'], tone:'az', pkt:'POST', dur:700,
-    inspector:{tone:'info', toneLabel:'REQUEST · POST', title:'Redeem the code — no secret, a verifier instead',
+    inspector:{tone:'info', toneLabel:'BROKERED TOKEN ACQUISITION', title:'WAM handles the protocol; MSAL receives the result',
       rows:[
-      {t:'POST https://login.microsoftonline.com/contoso.onmicrosoft.com/oauth2/v2.0/token', k:true},
-      {t:'Content-Type: application/x-www-form-urlencoded'},
-      {t:'grant_type &nbsp;&nbsp;&nbsp;= authorization_code', k:true},
-      {t:'code &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0.AXkA&hellip;'},
-      {t:'redirect_uri = http://localhost:53242'},
-      {t:'code_verifier = the one-time PKCE secret MSAL generated at step 2', k:true},
-      {t:'client_id &nbsp;&nbsp;&nbsp;&nbsp;= Graph Command Line Tools &middot; scope = &hellip;'}],
-      note:'Compare the app-only simulator: same endpoint, grant_type client_credentials and a client_secret instead.'},
-    code:{title:'same endpoint as the app-only flow', numbers:false, lines:[
-      {t:'<span class="cm"># app-only (Invoke-RestMethod by hand):</span>'},
-      {t:'grant_type = \'client_credentials\'; client_secret = ***', hl:true},
-      {t:'<span class="cm"># delegated (MSAL does it for you):</span>'},
-      {t:'grant_type = \'authorization_code\'; code = ***; code_verifier = ***', hl:true}]}
+      {t:'resource : Microsoft Graph'},
+      {t:'scope &nbsp;&nbsp;&nbsp;: ThreatHunting.Read.All', k:true},
+      {t:'identity : selected Windows user + public client'},
+      {t:'client secret : not present', k:true},
+      {t:'certificate &nbsp;: not present', k:true},
+      {t:'result &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: access token with user claims and scp'}],
+      note:'Compare app-only: secret or certificate proves the app. Here WAM authenticates a user for a public client.'},
+    code:{title:'credential boundary', numbers:false, lines:[
+      {t:'<span class="cm"># AppOnly      → client secret → roles claim</span>'},
+      {t:'<span class="cm"># Certificate  → signed assertion → roles claim</span>'},
+      {t:'<span class="cm"># Delegated    → WAM user sign-in → scp + user claims</span>', hl:true}]}
   },
 
   { n:7, node:'n-pwsh', edge:'e5', zones:['z-entra', 'z-client'], tone:'safe', pkt:'JWT', dur:800, chatAfter:true,
-    chat:[{who:'sys', t:'Welcome to Microsoft Graph! &middot; Signed in as alexw@contoso.com &middot; scopes: ThreatHunting.Read.All'}],
+    chat:[{who:'sys', t:'Complete JWT copied to clipboard (about 2900 characters) for https://jwt.ms'},
+      {who:'sys', t:'Signed in as alexw@contoso.com &middot; scopes: ThreatHunting.Read.All'}],
     inspector:{tone:'safe', toneLabel:'RESPONSE · 200 OK · JWT', title:'A token about a user — scp, not roles',
       rows:[
       {t:'{ "token_type": "Bearer", "expires_in": 4213, "access_token": "eyJ0eXAi&hellip;",'},
-      {t:'&nbsp;&nbsp;"refresh_token": "0.AXkA&hellip;" }  &larr; offline_access; MSAL caches it'},
+      {t:'&nbsp;&nbsp;complete access_token copied verbatim: header.payload.signature }', k:true},
       {sec:'decoded at jwt.ms'},
-      {t:'aud &nbsp;: https://graph.microsoft.com'},
-      {t:'scp &nbsp;: "ThreatHunting.Read.All openid profile offline_access"', k:true},
+      {t:'aud &nbsp;: 00000003-0000-0000-c000-000000000000 &nbsp;(Microsoft Graph)'},
+      {t:'scp &nbsp;: "ThreatHunting.Read.All profile openid email"', k:true},
       {t:'upn &nbsp;: alexw@contoso.com &middot; oid &middot; tid &middot; amr : [ pwd, mfa ]', k:true}],
       note:'Two identities in one token: the app (appid) and the user (upn/oid). Graph will check both.'},
-    code:{title:'the session', numbers:false, lines:[
+    code:{title:'publish, then hand the same token to Graph PowerShell', numbers:false, lines:[
+      {t:'Publish-DemoAccessToken -AccessToken $tokenResult.AccessToken', hl:true},
+      {t:'$token = ConvertTo-DemoSecureString -Value $tokenResult.AccessToken'},
+      {t:'Connect-MgGraph -AccessToken $token -Environment Global -NoWelcome', hl:true},
       {t:'$ctx = Get-MgContext', hl:true},
-      {t:'$ctx.AuthType<span class="cm">      # Delegated</span>'},
-      {t:'$ctx.Account<span class="cm">       # alexw@contoso.com</span>'},
-      {t:'$ctx.Scopes<span class="cm">        # ThreatHunting.Read.All, openid, profile, …</span>'},
       {t:'$graphHost = (Get-MgEnvironment | Where-Object Name -eq $ctx.Environment).GraphEndpoint', hl:true},
-      {t:'<span class="cm"># the signed-in context is the authority on which cloud we are in</span>'}]}
+      {t:'<span class="cm"># raw token variables are nulled; the clipboard retains the complete JWT</span>'}]}
   },
 
   { n:8, node:'n-graph', edge:'e6', zones:['z-client', 'z-graph'], tone:'safe', pkt:'POST', dur:1300, hot:'bnd1',
@@ -767,12 +772,12 @@ const STEPS = [
       {from:'-ContentType', field:'header', to:'application/json; charset=utf-8'},
       {from:'-Body $body', field:'body', to:'{ "Query": "EntraIdSignInEvents | &hellip;", "Timespan": "P1D" }'},
       {from:'-OutputType PSObject', field:'(client)', to:'deserialize the JSON reply into objects'}],
-      note:'The wire is identical to the app-only call. Only the token — and who it speaks for — differs.'},
+      note:'The wire is identical to the app-only call. Connect-MgGraph attaches the supplied token; rerun the script when it expires.'},
     code:{title:'REST call · Graph', numbers:false, lines:[
       {t:'$body = @{ Query = $kql; Timespan = \'P1D\' } | ConvertTo-Json'},
       {t:'$response = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body `', hl:true},
       {t:'    -ContentType \'application/json; charset=utf-8\' -OutputType PSObject', hl:true},
-      {t:'<span class="cm"># no -Authentication / -Token: MSAL attaches (and refreshes) the bearer token</span>'},
+      {t:'<span class="cm"># no -Authentication / -Token here: Graph PowerShell attaches the supplied bearer token</span>'},
       {t:'<span class="cm"># the SDK throws on any non-2xx — catch it to read the JSON error body</span>'}]}
   },
 
@@ -851,7 +856,7 @@ const STEPS = [
 
   { n:13, node:'n-file', edge:'e10', zones:['z-client'], tone:'az', pkt:'JSON', dur:600, chatAfter:true,
     chat:[{who:'sys', t:'Saved -&gt; .\\SignIns-Last24h-20260903-0946.json'},
-      {who:'agent', type:true, t:'Done &mdash; as <b>Alex</b>, not as an app. Disconnect-MgGraph ends the session and clears the cached token.'}],
+      {who:'agent', type:true, t:'Done &mdash; the complete delegated JWT remains on the clipboard for jwt.ms. Clear it manually after inspection.'}],
     inspector:{tone:'note', toneLabel:'FILE · JSON', title:'Objects → text → disk, nesting intact',
       rows:[
       {t:'$response | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8', k:true},
@@ -860,11 +865,13 @@ const STEPS = [
       {t:'depth 2 &middot; schema[] and results[] &mdash; <b>arrays of objects</b>', html:true},
       {t:'depth 3 &middot; results[0].Apps[] &mdash; an <b>array inside an object</b>', html:true},
       {t:'default -Depth 2 would flatten Apps to a string', strike:true}],
-      note:'Two runs, one file format. Show them side by side in VS Code — only the sign-in story differed.'},
-    code:{title:'wrap up', numbers:false, lines:[
+      note:'Three auth modes, one response format. Secret and certificate are app-only; delegated uses WAM and user context.'},
+    code:{title:'manual teardown after jwt.ms inspection', numbers:false, lines:[
       {t:'$response | ConvertTo-Json -Depth 10 | Set-Content -Path $path -Encoding utf8', hl:true},
-      {t:'Disconnect-MgGraph<span class="cm">     # clears the cached token for this context scope</span>', hl:true},
-      {t:'<span class="cm"># -ContextScope Process on Connect-MgGraph would have kept the sign-in to this session only</span>'}]}
+      {t:'<span class="cm"># Run the next commands manually only after the token comparison.</span>'},
+      {t:'Disconnect-MgGraph<span class="cm">     # clears the Graph PowerShell context</span>', hl:true},
+      {t:'Set-Clipboard -Value \'\'<span class="cm">  # clears the copied bearer token</span>', hl:true},
+      {t:'<span class="cm"># The selected work account remains managed by Windows WAM.</span>'}]}
   },
 ];
 

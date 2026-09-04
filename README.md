@@ -1,8 +1,8 @@
 # REST APIs, JSON & the Microsoft Graph Security API
 
-> A hands-on training kit for Cloud Solution Architects: a 20-slide deck, three interactive request-flow simulations, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using the `ThreatHunting.Read.All` permission — app-only *and* delegated, so learners experience the difference.
+> A hands-on training kit for Cloud Solution Architects: a 20-slide deck, three interactive request-flow simulations, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using `ThreatHunting.Read.All` with a client secret, a correlated training certificate, and delegated sign-in.
 
-![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-5391FE?logo=powershell&logoColor=white)
+![PowerShell 7.3+](https://img.shields.io/badge/PowerShell-7.3%2B-5391FE?logo=powershell&logoColor=white)
 ![Microsoft Graph v1.0](https://img.shields.io/badge/Microsoft%20Graph-v1.0-0078D4)
 ![Defender XDR](https://img.shields.io/badge/Defender%20XDR-Advanced%20hunting-107C10)
 ![Clouds](https://img.shields.io/badge/Clouds-Public%20%7C%20Azure%20Government-6264A7)
@@ -23,16 +23,16 @@
 | File | Purpose |
 | --- | --- |
 | [`REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
-| [`Sim-App-Registration-Admin-Consent.html`](class_content/Sim-App-Registration-Admin-Consent.html) | 13-step simulation of creating the app registration, client secret, service principal, and programmatic admin consent through Microsoft Graph. |
+| [`Sim-App-Registration-Admin-Consent.html`](class_content/Sim-App-Registration-Admin-Consent.html) | 13-step simulation of creating the app registration, correlated training certificate, client secret, service principal, and programmatic admin consent through Microsoft Graph. |
 | [`Sim-AppOnly-Client-Credentials.html`](class_content/Sim-AppOnly-Client-Credentials.html) | 12-step simulation of OpenID discovery, the OAuth 2.0 client-credentials token request, `runHuntingQuery`, error boundaries, and JSON output. |
-| [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated browser sign-in, admin consent, authorization-code redemption, the `scp` claim, and the Graph hunting call. |
+| [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated Windows Web Account Manager sign-in, admin consent, the `scp` claim, and the Graph hunting call. |
 | [`Identity_101.md`](extras/Identity_101.md) | Supplemental primer on app-only scopes, client secrets, certificates, managed identities, and Microsoft Graph application permissions. |
 | [`Identity_102.md`](extras/Identity_102.md) | Deep dive into `principalId`, `resourceId`, and `appRoleId` for managed-identity app-role assignments. |
 | [`Identity_103.md`](extras/Identity_103.md) | Guide to identifying an API resource URI, forming its `/.default` scope, and validating token audience and roles. |
 | [`JSON-Anatomy-Diagram.svg`](images/JSON-Anatomy-Diagram.svg) · [`JSON-Anatomy-Diagram.png`](images/JSON-Anatomy-Diagram.png) | Stand-alone diagram of a JSON object: keys/values, string, number, boolean, null, array, array of objects, nested object, with PowerShell 7 equivalents. Also embedded on slide 8. |
 | [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
-| [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates a uniquely named app registration (`Graph Security API - Hunting Demo - <alias> - <6 random characters>`) **programmatically through Graph REST calls**: `ThreatHunting.Read.All` (Application), tenant-wide admin consent, a 12-month client secret, and writes `scripts/HuntingDemo.settings.json`. |
-| [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly` (raw `Invoke-RestMethod`: discovery → token → Graph) or `-AuthMode Delegated` (`Connect-MgGraph` → `Invoke-MgGraphRequest`). Writes the JSON response to a file. |
+| [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates a uniquely named app registration, consent, secret, and a 12-month self-signed certificate named `<app registration name> - TRAINING`, copied into `Cert:\CurrentUser\My` through .NET `X509Store`. Its `TRAINING ONLY` details list all app and tenant IDs for correlation. |
+| [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly`, `Certificate`, or `Delegated`. It clears stale token state and the clipboard first, then copies the complete JWT to the clipboard for jwt.ms and optionally saves it to a file. |
 | [`SignIns-Last24h.kql`](SignIns-Last24h.kql) | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 | [`README-Facilitator-Notes.md`](README-Facilitator-Notes.md) | Presenter runbook: slide outline, day-before checklist, live-demo script, sources and facts to state precisely. |
 
@@ -43,8 +43,8 @@
 | Tenant & licensing | Microsoft Defender XDR. The `EntraIdSignInEvents` table requires **Microsoft Entra ID P2** (fallback: `IdentityLogonEvents`, see the end of the `.kql`). |
 | Role to run the setup script | **Privileged Role Administrator** or Global Administrator. Cloud Application Administrator can create the app but *cannot* consent to Microsoft Graph application permissions. |
 | Role to run the delegated demo | Any user an admin has consented for — or an admin, who will see "Consent on behalf of your organization" on first run. |
-| Tooling | **PowerShell 7.0+** (`pwsh`). Windows PowerShell 5.1 lacks `-Authentication`, `-Token`, `-StatusCodeVariable`, `-SkipHttpErrorCheck` and `ConvertFrom-SecureString -AsPlainText`. |
-| Module | `Microsoft.Graph.Authentication` (setup script and Delegated mode): `Install-Module Microsoft.Graph.Authentication -Scope CurrentUser` |
+| Tooling | **PowerShell 7.3+** (`pwsh`). Certificate creation uses the .NET 7 X.500 builder; Windows PowerShell 5.1 also lacks the required REST switches. |
+| Module | `Microsoft.Graph.Authentication` (setup and token acquisition): `Install-Module Microsoft.Graph.Authentication -Scope CurrentUser` |
 | Network | `login.microsoftonline.com` and `graph.microsoft.com` — or the `.us` equivalents for Azure Government (discovered automatically, see below). |
 
 ## Quick start
@@ -54,24 +54,28 @@
 git clone https://github.com/dcodev1702/REST-API-Class-L200.git
 cd REST-API-Class-L200
 
-# 2. One-time: create the app registration, grant admin consent, issue a 12-month secret
+# 2. One-time: create the app, grant consent, issue a secret and a 12-month training certificate
 #    (sign in as Privileged Role Administrator; add -TenantId <id-or-domain> if you have several tenants)
 .\scripts\New-HuntingAppRegistration.ps1 -PreviewName # optional; shows the generated name without creating anything
-.\scripts\New-HuntingAppRegistration.ps1              # add -IncludeDelegatedScope to capture the delegated JWT
+.\scripts\New-HuntingAppRegistration.ps1 -IncludeDelegatedScope -CertificateValidityMonths 12
 #    -> names the app Graph Security API - Hunting Demo - <signed-in alias> - <6 random characters>
-#    -> prints Tenant ID, Client ID and the SECRET (shown once - copy it now)
-#    -> writes scripts\HuntingDemo.settings.json (identifiers + endpoints, never the secret)
+#    -> creates a non-exportable certificate in Cert:\CurrentUser\My through .NET X509Store
+#    -> names the cert <app registration name> - TRAINING; CERTIFICATE DETAILS show every correlation ID
+#    -> writes identifiers, endpoints and certificate metadata to settings (never the secret/private key)
 
 # 3. Keep the secret out of the scripts for the session
 $env:HUNT_CLIENT_SECRET = '<paste the secret>'        # or skip this and let the script prompt
 
-# 4. Run the demo - app-only (OAuth 2.0 client credentials, pure REST)
+# 4. Run with a client secret. The complete JWT is copied to the clipboard automatically.
 .\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt
 
-# 5. Run it again - delegated (requires setup with -IncludeDelegatedScope when saving the JWT)
+# 5. Run app-only with the correlated training certificate (no secret or user)
+.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate -TokenOutFile .\certificate-token.jwt
+
+# 6. Run delegated (requires setup with -IncludeDelegatedScope)
 .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt
 
-# 6. Look at what came back
+# 7. Paste the current clipboard directly into https://jwt.ms, then inspect the response
 Get-Content .\SignIns-Last24h-*.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty results | Format-Table
 ```
 
@@ -90,7 +94,7 @@ Three REST calls, all visible in the console output:
 | 2 | `POST /security/runHuntingQuery` | An *action* is a POST even though it only reads; Bearer header; JSON body; `schema[]` + `results[]` = arrays of objects. |
 | 3 | `ConvertTo-Json -Depth 10` | The default depth of 2 truncates nested arrays (`Apps`) — the number-one JSON trap in PowerShell. |
 
-Delegated mode replaces steps 0–1 with `Connect-MgGraph -Scopes 'ThreatHunting.Read.All'` (MSAL handles the token and shows the consent prompt) and issues step 2 with `Invoke-MgGraphRequest` — same verb, URI and body. When `-TokenOutFile` is supplied, the script uses the Microsoft Authentication Library bundled with the Graph module to acquire and save the same delegated token before passing it to `Connect-MgGraph`.
+`Certificate` uses the same app-only `/.default` scope and produces the same `roles` claim as `AppOnly`; only the proof changes from a shared secret to a certificate-signed client assertion. `Delegated` uses the custom public client through Windows Web Account Manager, with **no certificate and no client secret**, so its token contains `scp` and user claims. Every mode clears the old clipboard and transient token variables, copies the complete new JWT to the clipboard, and then calls Graph. `-TokenOutFile` is an optional second copy on disk.
 
 ## Public vs Azure Government — how endpoints are resolved
 
@@ -127,25 +131,27 @@ EntraIdSignInEvents                              // Defender XDR advanced huntin
 | `-TenantId` | *(current)* | Tenant ID or verified domain; also drives endpoint discovery. |
 | `-Environment` | *(discovered)* | `Public` or `AzureGov` override. |
 | `-SecretValidityMonths` | `12` | 1–24. Sets `passwordCredential.endDateTime`. |
-| `-IncludeDelegatedScope` | off | Also adds the delegated scope, `http://localhost` public-client redirect and an `oauth2PermissionGrant` (AllPrincipals). Leave off so learners see the consent prompt with the SDK's default app. |
+| `-CertificateValidityMonths` | `12` | 1–24. Sets the training certificate lifetime; the final private key is non-exportable. |
+| `-IncludeDelegatedScope` | off | Adds the delegated scope, `http://localhost` fallback, WAM broker redirect `ms-appx-web://microsoft.aad.brokerplugin/{client_id}`, and an `oauth2PermissionGrant` (AllPrincipals). |
 | `-PreviewName` | off | Signs in, prints the generated default name, and exits before any Graph or file changes. |
-| `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Identifiers and endpoints only — the secret is never written. |
+| `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Identifiers, endpoints and certificate metadata only — never the secret or private key. |
 
-Graph calls it makes (each printed as `VERB URI` while it runs): `GET /servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'` → `POST /applications` → `POST /applications/{id}/addPassword` → `POST /servicePrincipals` → `POST /servicePrincipals/{graphSpId}/appRoleAssignedTo` (= admin consent) → optional `POST /oauth2PermissionGrants`.
+Credential setup: .NET `CertificateRequest` creates an RSA/SHA-256 certificate named `<app registration display name> - TRAINING`; .NET `X509Store.Add()` copies it to Current User > Personal; `PATCH /applications/{id}` uploads only its public key. The `TRAINING ONLY CERTIFICATE DETAILS` block lists the app name, client ID, object ID, tenant ID, thumbprints and validity for correlation. Graph calls then continue with `POST /applications/{id}/addPassword`, `POST /servicePrincipals`, `POST /servicePrincipals/{graphSpId}/appRoleAssignedTo`, and optional `POST /oauth2PermissionGrants`.
 Sign-in scopes requested: `Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All` (+ `DelegatedPermissionGrant.ReadWrite.All` with `-IncludeDelegatedScope`).
 
 ### `Invoke-HuntingQuery.ps1`
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
-| `-AuthMode` | `AppOnly` | `AppOnly` (client credentials via `Invoke-RestMethod`) or `Delegated` (`Connect-MgGraph`). |
-| `-TenantId`, `-ClientId` | from `scripts\HuntingDemo.settings.json` | Required for AppOnly if no settings file. |
+| `-AuthMode` | `AppOnly` | `AppOnly` (secret), `Certificate` (app-only signed assertion), or `Delegated` (WAM user; no cert/secret). |
+| `-TenantId`, `-ClientId` | from `scripts\HuntingDemo.settings.json` | Required for every mode if no settings file. |
 | `-ClientSecret` | `$env:HUNT_CLIENT_SECRET`, else prompt | `SecureString`. |
+| `-CertificateThumbprint` | from `scripts\HuntingDemo.settings.json` | Override for a certificate with a private key in `Cert:\CurrentUser\My`. |
 | `-Environment` | *(discovered)* | `Public` or `AzureGov` override. |
 | `-Hours` | `24` | 1–720. Drives `ago()` in the query and the API `Timespan` (`P<days>D`). |
 | `-QueryFile` | *(built-in query)* | Send a `.kql` file verbatim. |
 | `-OutFile` | `.\SignIns-Last<Hours>h-<yyyyMMdd-HHmm>.json` | Full `huntingQueryResults` object. |
-| `-TokenOutFile` (`-JwtOutFile`) | *(none)* | Opt-in raw JWT capture. Delegated capture requires an app created with `-IncludeDelegatedScope`. Treat the file as a bearer credential. |
+| `-TokenOutFile` (`-JwtOutFile`) | *(none)* | Optional file copy of the complete JWT. The complete JWT is always copied to the clipboard. Delegated mode requires `-IncludeDelegatedScope` during setup. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Written by the setup script. |
 
 Console output: resolved endpoints and their source, the three calls, `HTTP <status> | <n> row(s) | request-id`, the `schema` table, the first ten `results`, the saved path, and a round-trip read of the file.
@@ -167,7 +173,7 @@ Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP
 
 Open any simulator from `class_content`, select **Start simulation**, then choose **Run the script** or **Run the call**. Use **Space** or **→** to advance, **←** to step back, the numbered progress segments to jump, and **Autoplay** for an unattended walkthrough. The **Slides** control returns to the deck.
 
-Recommended sequence: app registration and admin consent → app-only client credentials → delegated sign-in and consent. Together they expose the request/response payloads, PowerShell commands, identity boundary, expected failures, and resulting tenant or file state before the live demo touches a tenant.
+Recommended sequence: registration and consent → app-only secret → app-only certificate → delegated sign-in. Compare the two app-only `roles` tokens with the delegated `scp` token at jwt.ms.
 
 ## The diagram
 
@@ -179,6 +185,7 @@ Recommended sequence: app registration and admin consent → app-only client cre
 | --- | --- | --- |
 | `AADSTS7000215: Invalid client secret` | Wrong or expired secret | Re-run `.\scripts\New-HuntingAppRegistration.ps1` to create a fresh student-specific app and secret, then update `$env:HUNT_CLIENT_SECRET`. To add a secret to the same app instead, pass its exact name with `-DisplayName`. |
 | `AADSTS700016 / AADSTS90002` | Unknown client or tenant | Check `HuntingDemo.settings.json`; pass `-TenantId` / `-ClientId` explicitly. |
+| Certificate not found / no private key / expired | The local training credential is unavailable | Re-run `New-HuntingAppRegistration.ps1` with the same `-DisplayName`, or pass a valid `-CertificateThumbprint`. Confirm it under `Cert:\CurrentUser\My`. |
 | `HTTP 401` | No or invalid token | Token expired (≈1 h) or wrong cloud — check the `Endpoints :` line in the output. |
 | `HTTP 403` | Token lacks `ThreatHunting.Read.All` | Admin consent not granted or not replicated yet. Portal: App registrations → API permissions → status should read *Granted for &lt;tenant&gt;*. Wait 1–2 minutes after the setup script. |
 | `HTTP 429` | Throttled / CPU quota | Read the body; the script retries and honors `Retry-After`. |
@@ -189,16 +196,23 @@ Recommended sequence: app registration and admin consent → app-only client cre
 ## Security notes
 
 - The client secret is printed **once** by the setup script and is never written to disk by either script. Keep it in `$env:HUNT_CLIENT_SECRET` for the session or a SecretManagement vault — never in source control.
-- `scripts/HuntingDemo.settings.json` contains tenant and client identifiers (not secrets) — still tenant-specific, so keep it out of the repo. The included `.gitignore` excludes it and generated query results:
+- `scripts/HuntingDemo.settings.json` contains tenant, app and certificate identifiers, but no secret or private key. It remains tenant-specific and is excluded with generated results:
 
   ```gitignore
   scripts/HuntingDemo.settings.json
   SignIns-*.json
   *.jwt
+  *.cer
+  *.crt
+  *.pfx
+  *.p12
+  *.pem
+  *.key
   ```
 
-- For anything beyond a classroom demo prefer a certificate or a managed identity over a client secret, and scope the app to a dedicated demo tenant.
-- Paste access tokens only into <https://jwt.ms> (client-side decoding) when showing the `roles` / `scp` claims. A `-TokenOutFile` file grants the token's access until expiry; never share it, and delete it immediately after the demo.
+- The generated certificate is deliberately labeled `TRAINING ONLY - SELF-SIGNED - NOT FOR PRODUCTION`, lasts 12 months by default, and has a non-exportable private key. The script keeps it in the Windows certificate store and never exports certificate material into the repository. Production workloads should use managed identity or an organization-managed certificate and lifecycle.
+- Each run clears the clipboard before copying the complete JWT. Paste it only into <https://jwt.ms> for client-side decoding. Clear the clipboard with `Set-Clipboard -Value ''` and remove saved `.jwt` files after the workshop.
+- Remove the local certificate during teardown with `Remove-Item "Cert:\CurrentUser\My\<thumbprint>" -DeleteKey`; deleting the app registration does not remove the local private key.
 
 ## Microsoft Learn references
 
@@ -207,6 +221,7 @@ Recommended sequence: app registration and admin consent → app-only client cre
 - [EntraIdSignInEvents](https://learn.microsoft.com/defender-xdr/advanced-hunting-entraidsigninevents-table) · [AADSignInEventsBeta (deprecated)](https://learn.microsoft.com/defender-xdr/advanced-hunting-aadsignineventsbeta-table) · [IdentityLogonEvents](https://learn.microsoft.com/defender-xdr/advanced-hunting-identitylogonevents-table) · [Advanced hunting API quotas](https://learn.microsoft.com/defender-xdr/api-advanced-hunting)
 - [Permissions and consent overview](https://learn.microsoft.com/entra/identity-platform/permissions-consent-overview) · [Grant tenant-wide admin consent](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent) · [Permissions reference](https://learn.microsoft.com/graph/permissions-reference)
 - [Create application](https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0) · [application: addPassword](https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0) · [Grant an appRoleAssignment to a service principal](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0) · [Create oAuth2PermissionGrant](https://learn.microsoft.com/graph/api/oauth2permissiongrant-post?view=graph-rest-1.0)
+- [Add a certificate to an app with Microsoft Graph](https://learn.microsoft.com/graph/applications-how-to-add-certificate) · [Create a self-signed certificate for application authentication](https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate)
 - [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
 
 ## Contributing

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1240" viewBox="0 0 1400 1240" role="img" aria-labelledby="diagram-title diagram-description">
   <title id="diagram-title">REST API demo end-to-end request sequence</title>
-  <desc id="diagram-description">PowerShell discovers Microsoft Entra endpoints, requests an OAuth token, calls the Microsoft Graph Security API, receives JSON, and writes the response to a local file.</desc>
+  <desc id="diagram-description">PowerShell discovers Microsoft Entra endpoints, requests an OAuth token using a secret or correlated training certificate, copies the complete JWT to the clipboard, calls Microsoft Graph Security API, and writes the JSON response.</desc>
   <defs>
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#152238" stroke-width="1" opacity="0.35"/>
@@ -132,21 +132,21 @@
       <rect x="31" y="517" width="151" height="27" rx="13.5" fill="#201832" stroke="#bc8cff"/>
       <text x="106.5" y="535" fill="#bc8cff" font-size="11.5" font-weight="750" text-anchor="middle">02 &#183; AUTHORIZE</text>
 
-      <g data-source-label="POST {token_endpoint}  (form: client_id, client_secret, scope=.default, grant_type)">
+      <g data-source-label="POST {token_endpoint}  (client secret or certificate-signed assertion, scope=.default)">
         <rect x="273" y="526" width="658" height="68" rx="13" fill="#0f1626" stroke="#65468f"/>
         <rect x="290" y="539" width="59" height="25" rx="12.5" fill="#201832" stroke="#bc8cff"/>
         <text x="319.5" y="556" fill="#bc8cff" font-size="11.5" font-weight="800" text-anchor="middle">POST</text>
         <text x="362" y="553" fill="#e6edf3" font-size="14.5" font-family="'Cascadia Code','Consolas',monospace">{token_endpoint}</text>
-        <text x="362" y="577" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">(form: client_id, client_secret, scope=.default, grant_type)</text>
+        <text x="362" y="577" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">client_secret OR certificate assertion &#183; scope=.default</text>
         <line x1="210" y1="610" x2="690" y2="610" stroke="#bc8cff" stroke-width="2" marker-end="url(#arrow-purple)"/>
       </g>
 
-      <g data-source-label="200 JSON  { access_token (JWT, roles: ThreatHunting.Read.All), expires_in }">
+      <g data-source-label="200 JSON  { access_token (JWT, roles), expires_in }  then complete JWT to clipboard">
         <rect x="268" y="626" width="664" height="61" rx="13" fill="#0f1626" stroke="#1f6865" stroke-dasharray="5 4"/>
         <rect x="285" y="638" width="78" height="25" rx="12.5" fill="#102528" stroke="#2dd4bf"/>
         <text x="324" y="655" fill="#2dd4bf" font-size="11.5" font-weight="800" text-anchor="middle">200 JSON</text>
-        <text x="376" y="652" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">{ access_token (JWT, roles: ThreatHunting.Read.All),</text>
-        <text x="376" y="674" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">expires_in }</text>
+        <text x="376" y="652" fill="#c9d1d9" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">{ access_token (JWT, roles: ThreatHunting.Read.All), expires_in }</text>
+        <text x="376" y="674" fill="#e3b341" font-size="13.5" font-family="'Cascadia Code','Consolas',monospace">complete header.payload.signature &#8594; clipboard &#8594; jwt.ms</text>
         <line x1="690" y1="699" x2="220" y2="699" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-teal)"/>
       </g>
     </g>
@@ -180,23 +180,23 @@
       <rect x="31" y="1007" width="135" height="27" rx="13.5" fill="#1a281f" stroke="#3fb950"/>
       <text x="98.5" y="1025" fill="#3fb950" font-size="11.5" font-weight="750" text-anchor="middle">04 &#183; PERSIST</text>
 
-      <g data-source-label="ConvertTo-Json -Depth 10 | Set-Content SignIns-Last24h-&lt;stamp&gt;.json">
+      <g data-source-label="Complete JWT to clipboard; response to SignIns-Last24h-&lt;stamp&gt;.json">
         <rect x="289" y="1018" width="654" height="64" rx="13" fill="#0f1626" stroke="#82433f"/>
         <rect x="306" y="1031" width="62" height="25" rx="12.5" fill="#2a181c" stroke="#ff7b72"/>
         <text x="337" y="1048" fill="#ff7b72" font-size="11.5" font-weight="800" text-anchor="middle">LOCAL</text>
-        <text x="381" y="1046" fill="#e6edf3" font-size="14" font-family="'Cascadia Code','Consolas',monospace">ConvertTo-Json -Depth 10 | Set-Content</text>
+        <text x="381" y="1046" fill="#e6edf3" font-size="14" font-family="'Cascadia Code','Consolas',monospace">JWT &#8594; clipboard (optional .jwt) &#183; response &#8594;</text>
         <text x="381" y="1068" fill="#c9d1d9" font-size="14" font-family="'Cascadia Code','Consolas',monospace">SignIns-Last24h-&lt;stamp&gt;.json</text>
         <path d="M 210 1099 H 971 V 1134 H 220" fill="none" stroke="#ff7b72" stroke-width="2.1" marker-end="url(#arrow-coral)"/>
       </g>
 
       <rect x="67" y="1109" width="235" height="29" rx="14.5" fill="#111a29" stroke="#3fb950"/>
       <circle cx="87" cy="1123.5" r="4" fill="#3fb950"/>
-      <text x="101" y="1128" fill="#c9d1d9" font-size="12.5" font-family="'Cascadia Code','Consolas',monospace">JSON file saved locally</text>
+      <text x="101" y="1128" fill="#c9d1d9" font-size="12.5" font-family="'Cascadia Code','Consolas',monospace">JWT copied &#183; JSON saved</text>
     </g>
 
     <rect x="30" y="1172" width="1340" height="48" rx="13" fill="url(#footer-fill)" stroke="#2dd4bf"/>
     <circle cx="54" cy="1196" r="5" fill="#2dd4bf"/>
-    <text x="70" y="1201" fill="#c9d1d9" font-size="14.5">Discover the cloud &#8594; request identity &#8594; call Graph &#8594; persist the returned object as <tspan fill="#3fb950" font-weight="750">readable JSON</tspan></text>
+    <text x="70" y="1201" fill="#c9d1d9" font-size="14.5">Discover &#8594; prove with secret or training cert &#8594; copy JWT &#8594; call Graph &#8594; persist <tspan fill="#3fb950" font-weight="750">readable JSON</tspan></text>
     <text x="1363" y="1235" fill="#4f6383" font-size="10.5" font-family="'Cascadia Code','Consolas',monospace" text-anchor="end">REST APIs &#183; JSON &#183; Microsoft Graph Security API</text>
   </g>
 </svg>

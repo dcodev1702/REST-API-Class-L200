@@ -16,6 +16,7 @@
 | `extras/Identity_103.md` | Optional token-audience deep dive: resource identifiers, `/.default`, service principals, and `aud`. |
 | `images/JSON-Anatomy-Diagram.svg` / `.png` | Stand-alone "Anatomy of a JSON Object" diagram (object, key/value pairs, six data types, array of objects, object within an object, PowerShell 7 type mapping). Same diagram is embedded on slide 8. |
 | `scripts/New-HuntingAppRegistration.ps1` | Creates the app, consent, secret, and a 12-month self-signed certificate named `<app registration name> - TRAINING`. .NET `X509Store` copies its non-exportable private key to `Cert:\CurrentUser\My`; the `TRAINING ONLY` details block lists every correlation ID. |
+| `scripts/Remove-HuntingAppRegistration.ps1` | Correlated teardown. Reads `HuntingDemo.settings.json`, revokes all secrets and registered certificate keys, removes the exact local certificate and service principal, deletes the app registration, then deletes the settings file. `-WhatIf` performs only validation and `GET` calls. |
 | `scripts/Invoke-HuntingQuery.ps1` | Runs `AppOnly`, `Certificate`, or `Delegated`. Before auth it clears stale demo-token variables and the clipboard; afterwards it copies the complete JWT to the clipboard and optionally a `.jwt` file. |
 | `SignIns-Last24h.kql` | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 
@@ -99,7 +100,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 1. **Run 1 — AppOnly secret.** `.\scripts\Invoke-HuntingQuery.ps1`. Narrate discovery → secret token POST → hunting POST. Paste the clipboard into jwt.ms and show `roles`.
 2. **Run 2 — Certificate.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate`. Match `<app registration name> - TRAINING` in the local store to the app, then use the `TRAINING ONLY` details block/settings for client ID, object ID and tenant ID correlation. The private key signs a client assertion; Entra stores only the public key. Paste the new clipboard token into jwt.ms: `roles` is unchanged because the identity and permission are unchanged.
 3. **Run 3 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated`. Windows Web Account Manager presents the account selector. This public-client flow uses no certificate or client secret. Compare the resulting `scp` and user claims with both app-only tokens.
-4. **Teardown.** Clear the clipboard (`Set-Clipboard -Value ''`), remove `.jwt` files, remove the local cert with `Remove-Item "Cert:\CurrentUser\My\<thumbprint>" -DeleteKey`, then delete the disposable app registration.
+4. **Teardown.** Clear the clipboard (`Set-Clipboard -Value ''`) and remove saved `.jwt` files. Preview `.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf`; verify its app IDs and certificate thumbprint against the setup output, then run `.\scripts\Remove-HuntingAppRegistration.ps1`. The script prompts once and removes the secrets, registered certificate keys, local private-key certificate, enterprise app/consent, app registration, environment secret, and settings file.
 
 ## Microsoft Learn sources used
 
@@ -115,6 +116,10 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 - Grant tenant-wide admin consent (portal, PowerShell, Graph API) — <https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent>
 - Create application — <https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0>
 - application: addPassword — <https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0>
+- application: removePassword — <https://learn.microsoft.com/graph/api/application-removepassword?view=graph-rest-1.0>
+- Update application — <https://learn.microsoft.com/graph/api/application-update?view=graph-rest-1.0>
+- Delete servicePrincipal — <https://learn.microsoft.com/graph/api/serviceprincipal-delete?view=graph-rest-1.0>
+- Delete application — <https://learn.microsoft.com/graph/api/application-delete?view=graph-rest-1.0>
 - Add a certificate to an app using Microsoft Graph — <https://learn.microsoft.com/graph/applications-how-to-add-certificate>
 - Create a self-signed certificate for app authentication — <https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate>
 - Grant an appRoleAssignment to a service principal — <https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0>

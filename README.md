@@ -32,6 +32,7 @@
 | [`JSON-Anatomy-Diagram.svg`](images/JSON-Anatomy-Diagram.svg) · [`JSON-Anatomy-Diagram.png`](images/JSON-Anatomy-Diagram.png) | Stand-alone diagram of a JSON object: keys/values, string, number, boolean, null, array, array of objects, nested object, with PowerShell 7 equivalents. Also embedded on slide 8. |
 | [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
 | [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates a uniquely named app registration, consent, secret, and a 12-month self-signed certificate named `<app registration name> - TRAINING`, copied into `Cert:\CurrentUser\My` through .NET `X509Store`. Its `TRAINING ONLY` details list all app and tenant IDs for correlation. |
+| [`Remove-HuntingAppRegistration.ps1`](scripts/Remove-HuntingAppRegistration.ps1) | One-command teardown. Reads the generated settings file, revokes every app secret and registered certificate key, removes the correlated local private-key certificate and service principal, deletes the app registration, then removes the settings file. Supports `-WhatIf` and one high-impact confirmation. |
 | [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly`, `Certificate`, or `Delegated`. It clears stale token state and the clipboard first, then copies the complete JWT to the clipboard for jwt.ms and optionally saves it to a file. |
 | [`SignIns-Last24h.kql`](SignIns-Last24h.kql) | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 | [`README-Facilitator-Notes.md`](README-Facilitator-Notes.md) | Presenter runbook: slide outline, day-before checklist, live-demo script, sources and facts to state precisely. |
@@ -77,6 +78,10 @@ $env:HUNT_CLIENT_SECRET = '<paste the secret>'        # or skip this and let the
 
 # 7. Paste the current clipboard directly into https://jwt.ms, then inspect the response
 Get-Content .\SignIns-Last24h-*.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty results | Format-Table
+
+# 8. After the workshop, preview and run the correlated teardown
+.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf
+.\scripts\Remove-HuntingAppRegistration.ps1
 ```
 
 Allow 1–2 minutes between step 2 and step 4 for directory replication.
@@ -156,6 +161,16 @@ Sign-in scopes requested: `Application.ReadWrite.All`, `AppRoleAssignment.ReadWr
 
 Console output: resolved endpoints and their source, the three calls, `HTTP <status> | <n> row(s) | request-id`, the `schema` table, the first ten `results`, the saved path, and a round-trip read of the file.
 
+### `Remove-HuntingAppRegistration.ps1`
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Cleanup manifest written by the setup script. Supplies the tenant, cloud, client/object IDs, service-principal ID, credential key IDs, certificate store, and thumbprint. |
+| `-WhatIf` | off | Signs in and performs only `GET` requests, validates every recorded object correlation, and prints the cleanup manifest without changing local or directory state. |
+| `-Confirm` | high impact | The real run prompts once for the complete teardown. Use `-Confirm:$false` only when deliberate non-interactive cleanup is required. |
+
+The script explicitly calls `removePassword` for every current password credential and clears every registered certificate public key before deleting the exact service principal and app object identified by the settings file. It removes only the local certificate with the recorded thumbprint. Missing resources are treated as already absent, so a partially completed cleanup can be rerun. The settings file is deleted only after every requested operation succeeds; `HUNT_CLIENT_SECRET` is also cleared from the current PowerShell process.
+
 ## The deck
 
 Open [`class_content/REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) in a browser.
@@ -212,7 +227,7 @@ Recommended sequence: registration and consent → app-only secret → app-only 
 
 - The generated certificate is deliberately labeled `TRAINING ONLY - SELF-SIGNED - NOT FOR PRODUCTION`, lasts 12 months by default, and has a non-exportable private key. The script keeps it in the Windows certificate store and never exports certificate material into the repository. Production workloads should use managed identity or an organization-managed certificate and lifecycle.
 - Each run clears the clipboard before copying the complete JWT. Paste it only into <https://jwt.ms> for client-side decoding. Clear the clipboard with `Set-Clipboard -Value ''` and remove saved `.jwt` files after the workshop.
-- Remove the local certificate during teardown with `Remove-Item "Cert:\CurrentUser\My\<thumbprint>" -DeleteKey`; deleting the app registration does not remove the local private key.
+- Run `.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf`, inspect the correlated targets, then run it without `-WhatIf`. Deleting an app registration alone does not remove its local private key; the teardown script removes the recorded certificate explicitly before deleting the settings manifest.
 
 ## Microsoft Learn references
 
@@ -221,6 +236,7 @@ Recommended sequence: registration and consent → app-only secret → app-only 
 - [EntraIdSignInEvents](https://learn.microsoft.com/defender-xdr/advanced-hunting-entraidsigninevents-table) · [AADSignInEventsBeta (deprecated)](https://learn.microsoft.com/defender-xdr/advanced-hunting-aadsignineventsbeta-table) · [IdentityLogonEvents](https://learn.microsoft.com/defender-xdr/advanced-hunting-identitylogonevents-table) · [Advanced hunting API quotas](https://learn.microsoft.com/defender-xdr/api-advanced-hunting)
 - [Permissions and consent overview](https://learn.microsoft.com/entra/identity-platform/permissions-consent-overview) · [Grant tenant-wide admin consent](https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent) · [Permissions reference](https://learn.microsoft.com/graph/permissions-reference)
 - [Create application](https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0) · [application: addPassword](https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0) · [Grant an appRoleAssignment to a service principal](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0) · [Create oAuth2PermissionGrant](https://learn.microsoft.com/graph/api/oauth2permissiongrant-post?view=graph-rest-1.0)
+- [application: removePassword](https://learn.microsoft.com/graph/api/application-removepassword?view=graph-rest-1.0) · [Update application](https://learn.microsoft.com/graph/api/application-update?view=graph-rest-1.0) · [Delete servicePrincipal](https://learn.microsoft.com/graph/api/serviceprincipal-delete?view=graph-rest-1.0) · [Delete application](https://learn.microsoft.com/graph/api/application-delete?view=graph-rest-1.0)
 - [Add a certificate to an app with Microsoft Graph](https://learn.microsoft.com/graph/applications-how-to-add-certificate) · [Create a self-signed certificate for application authentication](https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate)
 - [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
 

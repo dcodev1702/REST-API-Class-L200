@@ -144,6 +144,17 @@ $certificateThumbprint = ([string] $settings.certificateThumbprint).Trim()
 if ($certificateThumbprint -and $certificateThumbprint -notmatch '^[0-9A-Fa-f]{40}$') {
     throw "Settings property 'certificateThumbprint' is not a valid SHA-1 certificate thumbprint."
 }
+$certificateName = if (-not [string]::IsNullOrWhiteSpace($settings.certificateName)) {
+    [string] $settings.certificateName
+}
+elseif (-not [string]::IsNullOrWhiteSpace($settings.certificateFriendlyName)) {
+    [string] $settings.certificateFriendlyName
+}
+else { 'not recorded' }
+$certificatePath = if ($certificateThumbprint) {
+    Join-Path -Path $certificateStore -ChildPath $certificateThumbprint
+}
+else { "$certificateStore\<thumbprint not recorded>" }
 
 if ($settings.PSObject.Properties.Name -contains 'clientSecret') {
     Write-Warning 'The settings file contains a legacy plaintext clientSecret property. Its value will not be displayed or used; successful teardown deletes the file.'
@@ -200,13 +211,14 @@ $passwordCredentials = @($app.passwordCredentials)
 $keyCredentials = @($app.keyCredentials)
 $localCertificate = $null
 if ($certificateThumbprint) {
-    $certificatePath = Join-Path -Path $certificateStore -ChildPath $certificateThumbprint
     $localCertificate = Get-Item -LiteralPath $certificatePath -ErrorAction SilentlyContinue
 }
 
 Write-Host "`nCleanup manifest" -ForegroundColor Cyan
 Write-Host "  Password credentials : $($passwordCredentials.Count)$(if ($recordedSecretKeyId) { " (recorded key $recordedSecretKeyId)" })"
 Write-Host "  Certificate keys     : $($keyCredentials.Count)$(if ($recordedCertificateKeyId) { " (recorded key $recordedCertificateKeyId)" })"
+Write-Host "  Certificate name     : $certificateName"
+Write-Host "  Certificate location : $certificatePath"
 Write-Host "  Local certificate    : $(if ($localCertificate) { $localCertificate.Thumbprint } else { 'already absent' })"
 Write-Host "  Service principal    : $(if ($sp) { $sp.id } else { 'already absent' })"
 Write-Host "  App registration     : $(if ($app) { $app.id } else { 'already absent' })"

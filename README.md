@@ -169,7 +169,7 @@ Console output: resolved endpoints and their source, the three calls, `HTTP <sta
 | `-WhatIf` | off | Signs in and performs only `GET` requests, validates every recorded object correlation, and prints the cleanup manifest without changing local or directory state. |
 | `-Confirm` | high impact | The real run prompts once for the complete teardown. Use `-Confirm:$false` only when deliberate non-interactive cleanup is required. |
 
-The script explicitly calls `removePassword` for every current password credential and clears every registered certificate public key before deleting the exact service principal and app object identified by the settings file. It removes only the local certificate with the recorded thumbprint. Missing resources are treated as already absent, so a partially completed cleanup can be rerun. The settings file is deleted only after every requested operation succeeds; `HUNT_CLIENT_SECRET` is also cleared from the current PowerShell process.
+The cleanup manifest prints the recorded certificate name and its full `Cert:\CurrentUser\My\<thumbprint>` location. The script explicitly calls `removePassword` for every current password credential and clears every registered certificate public key before deleting the exact service principal and app object identified by the settings file. It removes only the local certificate with the recorded thumbprint. Missing resources are treated as already absent, so a partially completed cleanup can be rerun. The settings file is deleted only after every requested operation succeeds; `HUNT_CLIENT_SECRET` is also cleared from the current PowerShell process.
 
 ## The deck
 

@@ -4,5 +4,8 @@ scripts/HuntingDemo.settings.json
 # Advanced hunting query results
 SignIns-*.json
 
+# Opt-in bearer-token captures
+*.jwt
+
 # VS Code workspace settings
 .vscode/

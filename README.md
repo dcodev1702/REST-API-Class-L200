@@ -57,7 +57,7 @@ cd REST-API-Class-L200
 # 2. One-time: create the app registration, grant admin consent, issue a 12-month secret
 #    (sign in as Privileged Role Administrator; add -TenantId <id-or-domain> if you have several tenants)
 .\scripts\New-HuntingAppRegistration.ps1 -PreviewName # optional; shows the generated name without creating anything
-.\scripts\New-HuntingAppRegistration.ps1
+.\scripts\New-HuntingAppRegistration.ps1              # add -IncludeDelegatedScope to capture the delegated JWT
 #    -> names the app Graph Security API - Hunting Demo - <signed-in alias> - <6 random characters>
 #    -> prints Tenant ID, Client ID and the SECRET (shown once - copy it now)
 #    -> writes scripts\HuntingDemo.settings.json (identifiers + endpoints, never the secret)
@@ -66,10 +66,10 @@ cd REST-API-Class-L200
 $env:HUNT_CLIENT_SECRET = '<paste the secret>'        # or skip this and let the script prompt
 
 # 4. Run the demo - app-only (OAuth 2.0 client credentials, pure REST)
-.\scripts\Invoke-HuntingQuery.ps1
+.\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt
 
-# 5. Run it again - delegated (interactive sign-in; first run shows the consent prompt)
-.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated
+# 5. Run it again - delegated (requires setup with -IncludeDelegatedScope when saving the JWT)
+.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt
 
 # 6. Look at what came back
 Get-Content .\SignIns-Last24h-*.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty results | Format-Table
@@ -90,7 +90,7 @@ Three REST calls, all visible in the console output:
 | 2 | `POST /security/runHuntingQuery` | An *action* is a POST even though it only reads; Bearer header; JSON body; `schema[]` + `results[]` = arrays of objects. |
 | 3 | `ConvertTo-Json -Depth 10` | The default depth of 2 truncates nested arrays (`Apps`) — the number-one JSON trap in PowerShell. |
 
-Delegated mode replaces steps 0–1 with `Connect-MgGraph -Scopes 'ThreatHunting.Read.All'` (MSAL handles the token and shows the consent prompt) and issues step 2 with `Invoke-MgGraphRequest` — same verb, URI and body.
+Delegated mode replaces steps 0–1 with `Connect-MgGraph -Scopes 'ThreatHunting.Read.All'` (MSAL handles the token and shows the consent prompt) and issues step 2 with `Invoke-MgGraphRequest` — same verb, URI and body. When `-TokenOutFile` is supplied, the script uses the Microsoft Authentication Library bundled with the Graph module to acquire and save the same delegated token before passing it to `Connect-MgGraph`.
 
 ## Public vs Azure Government — how endpoints are resolved
 
@@ -145,6 +145,7 @@ Sign-in scopes requested: `Application.ReadWrite.All`, `AppRoleAssignment.ReadWr
 | `-Hours` | `24` | 1–720. Drives `ago()` in the query and the API `Timespan` (`P<days>D`). |
 | `-QueryFile` | *(built-in query)* | Send a `.kql` file verbatim. |
 | `-OutFile` | `.\SignIns-Last<Hours>h-<yyyyMMdd-HHmm>.json` | Full `huntingQueryResults` object. |
+| `-TokenOutFile` (`-JwtOutFile`) | *(none)* | Opt-in raw JWT capture. Delegated capture requires an app created with `-IncludeDelegatedScope`. Treat the file as a bearer credential. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Written by the setup script. |
 
 Console output: resolved endpoints and their source, the three calls, `HTTP <status> | <n> row(s) | request-id`, the `schema` table, the first ten `results`, the saved path, and a round-trip read of the file.
@@ -193,10 +194,11 @@ Recommended sequence: app registration and admin consent → app-only client cre
   ```gitignore
   scripts/HuntingDemo.settings.json
   SignIns-*.json
+  *.jwt
   ```
 
 - For anything beyond a classroom demo prefer a certificate or a managed identity over a client secret, and scope the app to a dedicated demo tenant.
-- Paste access tokens only into <https://jwt.ms> (client-side decoding) when showing the `roles` / `scp` claims.
+- Paste access tokens only into <https://jwt.ms> (client-side decoding) when showing the `roles` / `scp` claims. A `-TokenOutFile` file grants the token's access until expiry; never share it, and delete it immediately after the demo.
 
 ## Microsoft Learn references
 

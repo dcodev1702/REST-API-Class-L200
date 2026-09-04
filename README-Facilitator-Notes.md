@@ -85,17 +85,19 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 6. **Dry run both modes** (allow 1–2 minutes after step 5 for replication):
 
    ```powershell
-   .\scripts\Invoke-HuntingQuery.ps1                     # AppOnly — settings file supplies tenant + client ID; prompts for the secret
-   .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated # interactive sign-in; first run shows the consent prompt
+   .\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt
+   .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt
    ```
 
-   Expected AppOnly output: `Endpoints : OpenID discovery: GET https://login.microsoftonline.com/<tenant>/v2.0/.well-known/openid-configuration`, `Token acquired…`, `HTTP 200 | n row(s) | request-id …`, the schema table, the first ten users, `Saved -> .\SignIns-Last24h-<timestamp>.json`.
+   Delegated JWT capture requires the app registration to have been created with `-IncludeDelegatedScope`. Both `.jwt` files are bearer credentials: keep them local, use them only for the claim comparison, and delete them after the demo.
+
+   Expected AppOnly output: `Endpoints : OpenID discovery: GET https://login.microsoftonline.com/<tenant>/v2.0/.well-known/openid-configuration`, `Token acquired…`, `JWT saved…`, `HTTP 200 | n row(s) | request-id …`, the schema table, the first ten users, `Saved -> .\SignIns-Last24h-<timestamp>.json`.
 
 ## Live-demo runbook (slide 20)
 
-1. **Run 1 — AppOnly.** `.\scripts\Invoke-HuntingQuery.ps1`. Narrate the three REST calls as they print: **GET** discovery (no token) → **POST** token (form body, JSON back) → **POST** `runHuntingQuery` (Bearer header, JSON body, JSON back). Show `$status`, `request-id`, the row count. Open the JSON file in VS Code and walk slide 8's anatomy: object → `schema[]` → `results[]` → `Apps[]`.
-2. **Run 2 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated`. The browser sign-in appears, then the **consent prompt** for `ThreatHunting.Read.All`: as a non-admin it reads "Need admin approval"; as an admin you get "Consent on behalf of your organization". Same `200 OK` afterwards. That contrast — silent app identity vs. a human consenting — *is* the lesson.
-3. **Optional, memorable:** paste the app-only access token into <https://jwt.ms> (nowhere else) and compare `roles: ["ThreatHunting.Read.All"]` with the delegated token's `scp`. Then remove the admin consent in the portal and run AppOnly again: the script prints the JSON error body and `HTTP 403` — 401 vs 403 vs consent in one screen.
+1. **Run 1 — AppOnly.** `.\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt`. Narrate the three REST calls as they print: **GET** discovery (no token) → **POST** token (form body, JSON back) → **POST** `runHuntingQuery` (Bearer header, JSON body, JSON back). Show `$status`, `request-id`, the row count. Open the JSON file in VS Code and walk slide 8's anatomy: object → `schema[]` → `results[]` → `Apps[]`.
+2. **Run 2 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt`. The browser sign-in appears, then the **consent prompt** for `ThreatHunting.Read.All`: as a non-admin it reads "Need admin approval"; as an admin you get "Consent on behalf of your organization". Same `200 OK` afterwards. That contrast — silent app identity vs. a human consenting — *is* the lesson.
+3. **Optional, memorable:** paste the two token files into <https://jwt.ms> (nowhere else) and compare app-only `roles: ["ThreatHunting.Read.All"]` with delegated `scp: "ThreatHunting.Read.All"`. Delete both files immediately afterwards. Then remove the admin consent in the portal and run AppOnly again: the script prints the JSON error body and `HTTP 403` — 401 vs 403 vs consent in one screen.
 
 ## Microsoft Learn sources used
 

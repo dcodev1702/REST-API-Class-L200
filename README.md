@@ -194,6 +194,59 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 
 ![Anatomy of a JSON Object](images/JSON-Anatomy-Diagram.png)
 
+## Trace a Secret-mode token
+
+Secret mode prints the case-sensitive `unique-per-token (uti)` value after Entra ID mints the access token. In **Microsoft Sentinel → DIBSecCom → Logs**, replace the placeholder below with that value to join the service-principal token issuance event to every Microsoft Graph request made with the token:
+
+```kusto
+let uti = "PASTE-UTI-FROM-SCRIPT";
+
+let Issuance =
+  AADServicePrincipalSignInLogs
+  | where TimeGenerated > ago(24h)
+  | where UniqueTokenIdentifier == uti
+  | project
+    Uti = UniqueTokenIdentifier,
+    SignInCreatedAt = CreatedDateTime,
+    SignInCorrelationId = CorrelationId,
+    AppId,
+    ServicePrincipalId,
+    ServicePrincipalName,
+    ClientCredentialType,
+    ResourceDisplayName,
+    SignInResult = ResultType,
+    IPAddress;
+
+let GraphCalls =
+  MicrosoftGraphActivityLogs
+  | where TimeGenerated > ago(24h)
+  | where SignInActivityId == uti or UniqueTokenId == uti
+  | extend Uti = iff(
+    isnotempty(SignInActivityId),
+    SignInActivityId,
+    UniqueTokenId)
+  | project
+    Uti,
+    GraphRequestAt = TimeGenerated,
+    TokenIssuedAt,
+    RequestId,
+    ClientRequestId,
+    RequestMethod,
+    RequestUri,
+    ResponseStatusCode,
+    GraphIPAddress = IPAddress,
+    Roles;
+
+Issuance
+| join kind=leftouter GraphCalls on Uti
+| project-away Uti1
+| order by GraphRequestAt asc
+```
+
+The result identifies when the client secret authenticated, the Entra sign-in `CorrelationId`, the calling service principal and IP address, and the exact Graph operation and HTTP result. In the example below, one Secret-mode token is traced to `POST /v1.0/security/runHuntingQuery` with `HTTP 200`.
+
+![DIBSecCom Log Analytics result tracing a Secret-mode token from Entra ID issuance to its Microsoft Graph runHuntingQuery request](images/appRegGraphAPICallEvidence.png)
+
 ## Troubleshooting
 
 | Symptom | Meaning | Fix |
@@ -238,7 +291,7 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 - [Create application](https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0) · [application: addPassword](https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0) · [Grant an appRoleAssignment to a service principal](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0) · [Create oAuth2PermissionGrant](https://learn.microsoft.com/graph/api/oauth2permissiongrant-post?view=graph-rest-1.0)
 - [application: removePassword](https://learn.microsoft.com/graph/api/application-removepassword?view=graph-rest-1.0) · [Update application](https://learn.microsoft.com/graph/api/application-update?view=graph-rest-1.0) · [Delete servicePrincipal](https://learn.microsoft.com/graph/api/serviceprincipal-delete?view=graph-rest-1.0) · [Delete application](https://learn.microsoft.com/graph/api/application-delete?view=graph-rest-1.0)
 - [Add a certificate to an app with Microsoft Graph](https://learn.microsoft.com/graph/applications-how-to-add-certificate) · [Create a self-signed certificate for application authentication](https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate)
-- [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Access token claims reference (`uti`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
+- [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Access token claims reference (`uti`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) · [Track activities with linkable identifiers](https://learn.microsoft.com/entra/identity/authentication/how-to-authentication-track-linkable-identifiers) · [Microsoft Graph activity logs](https://learn.microsoft.com/graph/microsoft-graph-activity-logs-overview) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
 
 ## Contributing
 

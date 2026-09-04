@@ -13,21 +13,21 @@
 
     Three ways to authenticate - run each so learners experience the difference:
 
-      AppOnly    OAuth 2.0 client-credentials flow, done by hand with Invoke-RestMethod so you can see the
-                 token request as a REST call. Uses the app registration created by New-HuntingAppRegistration.ps1
-                 (Application permission ThreatHunting.Read.All + tenant-wide admin consent + 12-month secret).
-                 No user is involved; the token carries a "roles" claim.
+      AppOnly      OAuth 2.0 client-credentials flow, done by hand with Invoke-RestMethod so you can see the
+                   token request as a REST call. Uses the app registration created by New-HuntingAppRegistration.ps1
+                   (Application permission ThreatHunting.Read.All + tenant-wide admin consent + 12-month secret).
+                   No user is involved; the token carries a "roles" claim.
 
-    Delegated  Interactive sign-in through Windows Web Account Manager (WAM), requesting the delegated scope
-             ThreatHunting.Read.All with the public client. No certificate or client secret is used. The token
-             carries an "scp" claim and user claims. Needs Microsoft.Graph.Authentication and Windows 10+.
+      Delegated    Interactive sign-in through Windows Web Account Manager (WAM), requesting the delegated scope
+                   ThreatHunting.Read.All with the public client. No certificate or client secret is used. The token
+                   carries an "scp" claim and user claims. Needs Microsoft.Graph.Authentication and Windows 10+.
 
-            Certificate  OAuth 2.0 client-credentials flow using the training-only self-signed certificate
-                                     created by New-HuntingAppRegistration.ps1. No user is involved; the token carries a "roles" claim.
+      Certificate  OAuth 2.0 client-credentials flow using the training-only self-signed certificate created by
+                   New-HuntingAppRegistration.ps1. No user is involved; the token carries a "roles" claim.
 
-        Before authentication, the script clears the clipboard and transient demo-token variables. After authentication,
-        the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. -TokenOutFile optionally
-        writes the same complete JWT to disk.
+    Before authentication, the script clears the clipboard and transient demo-token variables. After authentication,
+    the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. -TokenOutFile optionally
+    writes the same complete JWT to disk.
 
     Endpoints are NOT hard-coded. Resolution order:
       1. -Environment Public | AzureGov, when given (URLs pulled from Get-MgEnvironment when the SDK is present).

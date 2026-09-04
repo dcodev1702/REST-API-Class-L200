@@ -18,16 +18,15 @@
          app role id (application permission) instead of hard-coding a GUID.
       3. POST /applications                                           -> the app registration (single tenant)
          with requiredResourceAccess = Microsoft Graph / ThreatHunting.Read.All (Role).
-        4. Create an RSA self-signed certificate in Cert:\CurrentUser\My (12 months by default) and
-            PATCH /applications/{id}                                    -> upload its public key as a credential.
-        5. POST /applications/{id}/addPassword                          -> client secret, endDateTime = now + 12 months.
-        6. POST /servicePrincipals                                      -> the enterprise application (service principal).
-        7. POST /servicePrincipals/{graphSp}/appRoleAssignedTo          -> tenant-wide ADMIN CONSENT for the app role.
-        8. (optional -IncludeDelegatedScope) also add the delegated scope, loopback + WAM broker redirect URIs and an
-            oauth2PermissionGrant (AllPrincipals) so the same app can use delegated WAM sign-in without a cert or secret.
-        9. Write HuntingDemo.settings.json (tenantId, clientId, certificate metadata, endpoints - NEVER the secret
-            or private key) that
-         Invoke-HuntingQuery.ps1 picks up automatically.
+      4. Create an RSA self-signed certificate in Cert:\CurrentUser\My (12 months by default) and
+         PATCH /applications/{id}                                    -> upload its public key as a credential.
+      5. POST /applications/{id}/addPassword                          -> client secret, endDateTime = now + 12 months.
+      6. POST /servicePrincipals                                      -> the enterprise application (service principal).
+      7. POST /servicePrincipals/{graphSp}/appRoleAssignedTo          -> tenant-wide ADMIN CONSENT for the app role.
+      8. (optional -IncludeDelegatedScope) also add the delegated scope, loopback + WAM broker redirect URIs and an
+         oauth2PermissionGrant (AllPrincipals) so the same app can use delegated WAM sign-in without a cert or secret.
+      9. Write HuntingDemo.settings.json (tenantId, clientId, certificate metadata, endpoints - NEVER the secret
+         or private key) that Invoke-HuntingQuery.ps1 picks up automatically.
 
     Endpoints (login + Graph host) are resolved from the environment, not hard-coded: -Environment Public|AzureGov
     when given, otherwise the tenant's OpenID Connect discovery document (msgraph_host / token_endpoint).

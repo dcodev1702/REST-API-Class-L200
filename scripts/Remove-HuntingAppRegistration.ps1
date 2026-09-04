@@ -95,6 +95,7 @@ if (-not (Test-Path -LiteralPath $SettingsFile -PathType Leaf)) {
 }
 
 try {
+    # LOCAL MANIFEST LOAD: identifiers select exact resources; no secret value or private key is required.
     $settings = Get-Content -LiteralPath $SettingsFile -Raw | ConvertFrom-Json -ErrorAction Stop
 }
 catch {
@@ -169,6 +170,7 @@ Write-Host "Tenant     : $tenantId   Client ID : $clientId" -ForegroundColor Dar
 Write-Host "Graph host : $graphHost   Environment : $mgEnvironment`n" -ForegroundColor DarkGray
 
 Set-MgGraphOption -DisableLoginByWAM $false
+# AUTHENTICATION ONLY: establish a delegated Graph session; no resource has been changed yet.
 Connect-MgGraph -TenantId $tenantId -Environment $mgEnvironment -Scopes 'Application.ReadWrite.All' -NoWelcome
 $ctx = Get-MgContext
 if ($ctx.TenantId -ne $tenantId) {
@@ -181,6 +183,7 @@ Write-Host "Signed in as $($ctx.Account) in tenant $($ctx.TenantId)`n" -Foregrou
 # 3. Resolve by the immutable client ID, then cross-check the recorded object IDs before deletion.
 # ------------------------------------------------------------------------------------------------
 Write-Host 'Step 3  Resolve the recorded app registration and service principal' -ForegroundColor Cyan
+# READ-ONLY APP RESOLUTION: find by immutable client ID, then cross-check the recorded object ID.
 $app = (Invoke-Graph -Method GET -Uri "$g/applications?`$filter=appId%20eq%20'$clientId'&`$select=id,appId,displayName,passwordCredentials,keyCredentials").value |
     Select-Object -First 1
 if ($app -and $appObjectId -and $app.id -ne $appObjectId) {
@@ -193,6 +196,7 @@ if ($app) {
 }
 else { Write-Host '        app registration already absent' -ForegroundColor Yellow }
 
+# READ-ONLY SERVICE PRINCIPAL RESOLUTION: identify the Enterprise application before deletion.
 $spCandidates = @((Invoke-Graph -Method GET -Uri "$g/servicePrincipals?`$filter=appId%20eq%20'$clientId'&`$select=id,appId,displayName").value)
 $sp = if ($servicePrincipalId) {
     $spCandidates | Where-Object id -eq $servicePrincipalId | Select-Object -First 1
@@ -225,6 +229,7 @@ Write-Host "  App registration     : $(if ($app) { $app.id } else { 'already abs
 
 $target = "'$displayName' ($clientId) in tenant $tenantId"
 $action = 'Revoke all secrets and certificate keys, remove the local private key, delete the service principal and app registration, then delete the settings file'
+# DESTRUCTIVE BOUNDARY: -WhatIf stops here, after validation and GET requests but before every write/delete.
 if (-not $PSCmdlet.ShouldProcess($target, $action)) {
     return [pscustomobject]@{
         Mode                    = 'Preview'
@@ -247,6 +252,7 @@ $passwordsRemoved = 0
 if ($app) {
     Write-Host "`nStep 4  Revoke $($passwordCredentials.Count) client secret(s)" -ForegroundColor Cyan
     foreach ($credential in $passwordCredentials) {
+        # CLIENT SECRET REVOCATION: removePassword needs the key ID, not the unrecoverable secret value.
         Invoke-Graph -Method POST -Uri "$g/applications/$appObjectId/removePassword" -Body @{ keyId = $credential.keyId } | Out-Null
         $passwordsRemoved++
         Write-Host "        removed password key $($credential.keyId)" -ForegroundColor Green
@@ -261,6 +267,7 @@ $applicationCertificatesRemoved = 0
 if ($app) {
     Write-Host "Step 5  Remove $($keyCredentials.Count) registered certificate key(s)" -ForegroundColor Cyan
     if ($keyCredentials.Count -gt 0) {
+        # PUBLIC CERTIFICATE DEREGISTRATION: clear Entra's verification keys; the local private key is untouched here.
         Invoke-Graph -Method PATCH -Uri "$g/applications/$appObjectId" -Body @{ keyCredentials = @() } | Out-Null
         $applicationCertificatesRemoved = $keyCredentials.Count
         Write-Host '        all registered certificate keys removed' -ForegroundColor Green
@@ -274,6 +281,7 @@ if ($app) {
 Write-Host 'Step 6  Remove the correlated local training certificate and private key' -ForegroundColor Cyan
 $localCertificatesRemoved = 0
 if ($localCertificate) {
+    # LOCAL PRIVATE KEY DELETION: -DeleteKey removes the certificate and its private-key material from this user.
     Remove-Item -LiteralPath $localCertificate.PSPath -DeleteKey -Force
     $localCertificatesRemoved = 1
     Write-Host "        removed $($localCertificate.Thumbprint) from $certificateStore" -ForegroundColor Green
@@ -286,6 +294,7 @@ else { Write-Host '        already absent' -ForegroundColor DarkGray }
 $servicePrincipalRemoved = $false
 Write-Host 'Step 7  Delete the service principal (enterprise application and consent grants)' -ForegroundColor Cyan
 if ($sp) {
+    # SERVICE PRINCIPAL DELETION: remove the Enterprise application and its tenant-local consent relationships.
     Invoke-Graph -Method DELETE -Uri "$g/servicePrincipals/$servicePrincipalId" | Out-Null
     $servicePrincipalRemoved = $true
     Write-Host "        deleted $servicePrincipalId" -ForegroundColor Green
@@ -295,6 +304,7 @@ else { Write-Host '        already absent' -ForegroundColor DarkGray }
 $applicationRemoved = $false
 Write-Host 'Step 8  Delete the app registration' -ForegroundColor Cyan
 if ($app) {
+    # APP REGISTRATION DELETION: remove the application definition after its tenant instance is gone.
     Invoke-Graph -Method DELETE -Uri "$g/applications/$appObjectId" | Out-Null
     $applicationRemoved = $true
     Write-Host "        deleted $appObjectId (recoverable for 30 days)" -ForegroundColor Green
@@ -306,6 +316,7 @@ else { Write-Host '        already absent' -ForegroundColor DarkGray }
 # ------------------------------------------------------------------------------------------------
 Write-Host 'Step 9  Remove local secret state and cleanup manifest' -ForegroundColor Cyan
 $environmentSecretCleared = Test-Path -LiteralPath 'Env:\HUNT_CLIENT_SECRET'
+# LOCAL SECRET CLEANUP: clear the process environment copy, then remove the identifier-only manifest.
 if ($environmentSecretCleared) { Remove-Item -LiteralPath 'Env:\HUNT_CLIENT_SECRET' -Force }
 Remove-Item -LiteralPath $SettingsFile -Force
 Write-Host "        deleted $SettingsFile" -ForegroundColor Green

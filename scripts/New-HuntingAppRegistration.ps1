@@ -202,6 +202,8 @@ function New-TrainingCertificate {
     $storedThumbprint = $null
 
     try {
+        # LOCAL KEYPAIR CREATION: RSA generates the public/private keypair in this PowerShell process.
+        # The private key remains local and is never included in a Microsoft Graph request.
         $rsa = [System.Security.Cryptography.RSA]::Create(2048)
         $certificateRequest = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
             $DistinguishedName,
@@ -224,6 +226,7 @@ function New-TrainingCertificate {
             [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]::new($enhancedKeyUsages, $false)
         )
 
+        # LOCAL CERTIFICATE CREATION: self-sign the X.509 certificate in memory; no Graph call occurs here.
         $createdCertificate = $certificateRequest.CreateSelfSigned(
             [DateTimeOffset] $NotBefore.ToUniversalTime(),
             [DateTimeOffset] $NotAfter.ToUniversalTime()
@@ -245,7 +248,7 @@ function New-TrainingCertificate {
         $persistedCertificate.FriendlyName = $FriendlyName
         $storedThumbprint = $persistedCertificate.Thumbprint
 
-        # Explicit .NET store copy: CurrentUser > Personal (My).
+        # LOCAL CERTIFICATE STORAGE: copy the certificate and non-exportable private key to CurrentUser > Personal.
         $certificateStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
             [System.Security.Cryptography.X509Certificates.StoreName]::My,
             [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
@@ -321,6 +324,7 @@ if ($PreviewName) {
 # 2. Look up Microsoft Graph's service principal and the ThreatHunting.Read.All app role (no hard-coded GUIDs).
 # ------------------------------------------------------------------------------------------------
 Write-Host "Step 2  Resolve the '$Permission' permission on the Microsoft Graph service principal" -ForegroundColor Cyan
+# PERMISSION LOOKUP: read Microsoft Graph's published permission IDs. This does not grant consent yet.
 $graphSp = (Invoke-Graph -Method GET -Uri "$g/servicePrincipals?`$filter=appId%20eq%20'$GraphAppId'&`$select=id,appId,displayName,appRoles,oauth2PermissionScopes").value | Select-Object -First 1
 if (-not $graphSp) { throw 'Microsoft Graph service principal not found in this tenant.' }
 
@@ -335,6 +339,7 @@ if ($IncludeDelegatedScope) { Write-Host ("        scope     {0}  = {1}" -f $Per
 # 3. The app registration - reuse by display name, or create it with requiredResourceAccess pre-filled.
 # ------------------------------------------------------------------------------------------------
 Write-Host "Step 3  App registration '$DisplayName'" -ForegroundColor Cyan
+# PERMISSION DECLARATION: requiredResourceAccess records what the app requests; it is not admin consent.
 $resourceAccess = @(@{ id = $appRole.id; type = 'Role' })                    # Role  = application permission
 if ($IncludeDelegatedScope) { $resourceAccess += @{ id = $scope.id; type = 'Scope' } }   # Scope = delegated
 
@@ -347,6 +352,7 @@ if ($app) {
         $patch.isFallbackPublicClient = $true
         $patch.publicClient = @{ redirectUris = @('http://localhost', "ms-appx-web://microsoft.aad.brokerplugin/$($app.appId)") }
     }
+    # APP REGISTRATION UPDATE: PATCH the existing application object with its requested permissions/settings.
     Invoke-Graph -Method PATCH -Uri "$g/applications/$($app.id)" -Body $patch | Out-Null
 }
 else {
@@ -357,6 +363,7 @@ else {
         requiredResourceAccess = @(@{ resourceAppId = $GraphAppId; resourceAccess = $resourceAccess })
     }
     if ($IncludeDelegatedScope) { $body.isFallbackPublicClient = $true; $body.publicClient = @{ redirectUris = @('http://localhost') } }
+    # APP REGISTRATION CREATION: POST /applications creates the Entra application object.
     $app = Invoke-Graph -Method POST -Uri "$g/applications" -Body $body
     Write-Host "        created  appId (client ID) = $($app.appId)   objectId = $($app.id)" -ForegroundColor Green
     if ($IncludeDelegatedScope) {
@@ -373,6 +380,7 @@ Write-Host "Step 4  TRAINING ONLY self-signed certificate ($CertificateValidityM
 $certificateFriendlyName = $certificateName
 $certificateStart = (Get-Date).ToUniversalTime().AddMinutes(-5)
 $certificateEnd = $certificateStart.AddMonths($CertificateValidityMonths)
+# LOCAL CERTIFICATE CREATION: create and store the self-signed certificate before registering it with Entra.
 $certificate = New-TrainingCertificate `
     -DistinguishedName $certificateDistinguishedName `
     -FriendlyName $certificateFriendlyName `
@@ -383,6 +391,8 @@ $certificateRegistered = $false
 try {
     $certificateKeyId = [guid]::NewGuid()
     $certificateCredentialName = if ($certificateName.Length -le 90) { $certificateName } else { $certificateName.Substring(0, 90) }
+    # PUBLIC CERTIFICATE PAYLOAD: RawData is the DER-encoded X.509 public certificate.
+    # It contains the public key and certificate metadata, never the private key.
     $certificateCredential = @{
         customKeyIdentifier = [Convert]::ToBase64String($certificate.GetCertHash())
         displayName         = $certificateCredentialName
@@ -424,6 +434,7 @@ try {
     )
     $updatedKeyCredentials = @($preservedKeyCredentials) + @($certificateCredential)
 
+    # PUBLIC CERTIFICATE UPLOAD: PATCH the app registration's keyCredentials with public material only.
     Invoke-Graph -Method PATCH -Uri "$g/applications/$($app.id)" -Body @{ keyCredentials = $updatedKeyCredentials } | Out-Null
     $certificateRegistered = $true
 }
@@ -465,6 +476,8 @@ Write-Host '        ============================================================
 # ------------------------------------------------------------------------------------------------
 Write-Host "Step 5  Client secret ($SecretValidityMonths months)" -ForegroundColor Cyan
 $endDate  = (Get-Date).ToUniversalTime().AddMonths($SecretValidityMonths)
+# CLIENT SECRET CREATION: Microsoft Graph generates the secret on the app registration.
+# addPassword returns secretText exactly once; only its key ID and expiry go into settings.
 $secretResult = Invoke-Graph -Method POST -Uri "$g/applications/$($app.id)/addPassword" -Body @{
     passwordCredential = @{
         displayName = "Hunting demo secret ($(Get-Date -Format 'yyyy-MM-dd'))"
@@ -483,6 +496,7 @@ $sp = $null
 try   { $sp = Invoke-Graph -Method GET -Uri "$g/servicePrincipals(appId='$($app.appId)')?`$select=id,appId,displayName" }
 catch { $sp = $null }
 if (-not $sp) {
+    # SERVICE PRINCIPAL CREATION: instantiate the app in this tenant as its Enterprise application.
     $sp = Invoke-Graph -Method POST -Uri "$g/servicePrincipals" -Body @{ appId = $app.appId }
     Write-Host "        created  servicePrincipal id = $($sp.id)" -ForegroundColor Green
 }
@@ -503,6 +517,8 @@ else {
     $granted = $false
     for ($attempt = 1; $attempt -le 6 -and -not $granted; $attempt++) {
         try {
+            # APPLICATION ROLE ASSIGNMENT: this POST is the actual tenant-wide admin consent operation.
+            # principalId = our Enterprise app; resourceId = Microsoft Graph; appRoleId = ThreatHunting.Read.All.
             $assignment = Invoke-Graph -Method POST -Uri "$g/servicePrincipals/$($graphSp.id)/appRoleAssignedTo" -Body @{
                 principalId = $sp.id
                 resourceId  = $graphSp.id
@@ -531,10 +547,12 @@ if ($IncludeDelegatedScope -and $scope) {
         Write-Host '        already granted' -ForegroundColor DarkGray
     }
     elseif ($grant) {
+        # DELEGATED CONSENT UPDATE: add the scope to an existing tenant-wide OAuth permission grant.
         Invoke-Graph -Method PATCH -Uri "$g/oauth2PermissionGrants/$($grant.id)" -Body @{ scope = ("$($grant.scope) $Permission").Trim() } | Out-Null
         Write-Host '        scope added to existing grant' -ForegroundColor Green
     }
     else {
+        # DELEGATED CONSENT CREATION: AllPrincipals grants this delegated scope tenant-wide.
         Invoke-Graph -Method POST -Uri "$g/oauth2PermissionGrants" -Body @{
             clientId = $sp.id; consentType = 'AllPrincipals'; resourceId = $graphSp.id; scope = $Permission
         } | Out-Null
@@ -571,6 +589,7 @@ $settings = [ordered]@{
     secretExpiresUtc   = $endDate.ToString('yyyy-MM-ddTHH:mm:ssZ')
     createdUtc         = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 }
+# LOCAL SETTINGS WRITE: persist identifiers and metadata only; neither credential value is written here.
 $settings | ConvertTo-Json -Depth 3 | Set-Content -Path $SettingsFile -Encoding utf8
 Write-Host "`nSettings written (no secret) -> $SettingsFile" -ForegroundColor Green
 

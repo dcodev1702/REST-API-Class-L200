@@ -122,6 +122,7 @@ $ErrorActionPreference = 'Stop'
 # 0. Defaults from HuntingDemo.settings.json (JSON text -> object -> dot notation). Never holds the secret.
 # ------------------------------------------------------------------------------------------------
 if (Test-Path -Path $SettingsFile) {
+    # LOCAL CONFIG LOAD: this file contains identifiers and certificate metadata, never a secret or private key.
     $settings = Get-Content -Path $SettingsFile -Raw | ConvertFrom-Json
     if (-not $TenantId    -and $settings.tenantId)    { $TenantId    = $settings.tenantId }
     if (-not $ClientId    -and $settings.clientId)    { $ClientId    = $settings.clientId }
@@ -135,6 +136,7 @@ if (Test-Path -Path $SettingsFile) {
 #    Order: explicit -Environment -> OpenID discovery for the tenant (GET, anonymous, JSON) -> Public.
 # ------------------------------------------------------------------------------------------------
 function Reset-DemoTokenState {
+    # LOCAL CREDENTIAL RESET: remove stale demo tokens and clear the clipboard before acquiring another token.
     $variableNames = @(
         'accessToken', 'jwt', 'token', 'tokenResponse', 'tokenResult', 'certificateTokenResult',
         'header', 'payload', 'claims', 'parts', 'secureToken'
@@ -214,6 +216,7 @@ function Publish-DemoAccessToken {
 
     Set-Clipboard -Value ([string]::Empty)
 
+    # BEARER TOKEN EXPOSURE: copy the complete access token only for the deliberate jwt.ms teaching step.
     Set-Clipboard -Value $AccessToken
     $clipboardValue = (Get-Clipboard -Raw).TrimEnd([char[]] "`r`n")
     if ($clipboardValue -cne $AccessToken) { throw 'The complete JWT could not be verified on the clipboard.' }
@@ -227,6 +230,7 @@ function Publish-DemoAccessToken {
                 throw "Token output directory does not exist: $parentPath"
             }
 
+            # OPTIONAL TOKEN FILE: this writes a live bearer credential to disk only when -TokenOutFile is supplied.
             [System.IO.File]::WriteAllText($resolvedPath, $AccessToken, [System.Text.UTF8Encoding]::new($false))
             Write-Host "Complete JWT saved -> $resolvedPath" -ForegroundColor Yellow
         }
@@ -252,6 +256,7 @@ function Resolve-DemoEndpoints {
             $discoveryUri = "$($c.LoginHost)/$TenantId/v2.0/.well-known/openid-configuration"
             try {
                 # REST call #0 - GET is the default verb, no token needed. The JSON tells us where this tenant lives.
+                # OPENID DISCOVERY: anonymous GET returns the tenant's token endpoint and Microsoft Graph host.
                 $oidc  = Invoke-RestMethod -Method Get -Uri $discoveryUri
                 $mgEnv = switch ($oidc.msgraph_host) {
                     'graph.microsoft.us'     { 'USGov' }
@@ -353,6 +358,8 @@ try {
                                 else { Read-Host -Prompt 'Client secret' -AsSecureString }
             }
 
+            # APP-ONLY TOKEN REQUEST: the secret is decrypted at the last possible moment and sent only to
+            # Entra's HTTPS token endpoint. It is never sent to the Microsoft Graph hunting endpoint.
             $form = @{                                                    # hashtable -> application/x-www-form-urlencoded
                 client_id     = $ClientId
                 client_secret = ConvertFrom-SecureString -SecureString $ClientSecret -AsPlainText   # PS 7: decrypt only here
@@ -360,6 +367,7 @@ try {
                 grant_type    = 'client_credentials'                      # no user - the app is the identity
             }
 
+            # CLIENT-CREDENTIAL TOKEN ACQUISITION: exchange app ID + secret for a short-lived access token.
             $tokenResponse = Invoke-RestMethod -Method Post -Uri $ep.TokenEndpoint -Body $form   # POST default = form-encoded (correct here)
 
             # The JSON answer is already deserialized: access_token (JWT), token_type (Bearer), expires_in (seconds)
@@ -389,6 +397,7 @@ try {
                 MaximumRetryCount       = 2                               # retry transient failures; a 429 honors Retry-After
                 RetryIntervalSec        = 5
             }
+            # HUNTING API CALL: only the bearer token and JSON query go to Microsoft Graph, not the client secret.
             $response = Invoke-RestMethod @call                           # splatting: one hashtable = all the switches
         }
 
@@ -405,6 +414,7 @@ try {
 
             $certificateStore = if ($settings -and $settings.certificateStore) { $settings.certificateStore } else { 'Cert:\CurrentUser\My' }
             $certificatePath = Join-Path -Path $certificateStore -ChildPath $CertificateThumbprint
+            # LOCAL CERTIFICATE LOAD: retrieve the certificate and private-key handle from CurrentUser\My.
             $certificate = Get-Item -LiteralPath $certificatePath -ErrorAction Stop
             if (-not $certificate.HasPrivateKey) { throw "Certificate $CertificateThumbprint does not have a private key." }
             if ($certificate.NotBefore.ToUniversalTime() -gt [datetime]::UtcNow -or $certificate.NotAfter.ToUniversalTime() -le [datetime]::UtcNow) {
@@ -413,6 +423,8 @@ try {
 
             Import-DemoMsal
             $authority = "$(($ep.LoginHost).TrimEnd('/'))/$TenantId"
+            # CERTIFICATE TOKEN ACQUISITION: MSAL signs a client assertion locally. The private key never leaves
+            # the certificate store; Entra validates the signature with the public certificate on the app.
             $confidentialClient = [Microsoft.Identity.Client.ConfidentialClientApplicationBuilder]::Create($ClientId).WithAuthority($authority).WithCertificate($certificate).Build()
             $certificateTokenRequest = $confidentialClient.AcquireTokenForClient([string[]] @("$($ep.GraphHost)/.default"))
             $certificateTokenResult = $certificateTokenRequest.ExecuteAsync().ConfigureAwait($false).GetAwaiter().GetResult()
@@ -439,6 +451,7 @@ try {
                 MaximumRetryCount       = 2
                 RetryIntervalSec        = 5
             }
+            # HUNTING API CALL: certificate proof was used only to obtain this bearer token; Graph receives the token.
             $response = Invoke-RestMethod @call
         }
 
@@ -464,6 +477,7 @@ try {
                 WithParentActivityOrWindow([Func[IntPtr]] { [HuntingDemoWindow]::GetConsoleOrTerminalWindow() })
             $builder = [Microsoft.Identity.Client.Broker.BrokerExtension]::WithBroker($builder, $brokerOptions)
             $publicClient = $builder.Build()
+            # DELEGATED TOKEN ACQUISITION: WAM authenticates a user; no app secret or certificate participates.
             $interactive = $publicClient.AcquireTokenInteractive([string[]] @('ThreatHunting.Read.All')).WithPrompt([Microsoft.Identity.Client.Prompt]::SelectAccount)
             Write-Host 'Opening Windows Web Account Manager for delegated sign-in and JWT capture ...' -ForegroundColor Cyan
             $tokenResult = $interactive.ExecuteAsync().ConfigureAwait($false).GetAwaiter().GetResult()
@@ -473,6 +487,7 @@ try {
             $accessToken = $tokenResult.AccessToken
             Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
             $token = ConvertTo-DemoSecureString -Value $accessToken
+            # GRAPH SDK CONTEXT: reuse the token already obtained from WAM; this does not acquire another token.
             Connect-MgGraph -AccessToken $token -Environment $ep.MgEnvironment -NoWelcome
             $accessToken = $null
             $tokenResult = $null
@@ -492,6 +507,7 @@ try {
             Write-Host ("Signed in as {0}  |  environment {1}  |  scopes: {2}" -f $signedInAccount, $mgEnvName, ($signedInScopes -join ', ')) -ForegroundColor Green
 
             # Invoke-MgGraphRequest = Invoke-RestMethod with the token handled by MSAL. Same verb, URI and body.
+            # HUNTING API CALL: the delegated bearer token and JSON query are sent to Microsoft Graph.
             $response = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body `
                 -ContentType 'application/json; charset=utf-8' -OutputType PSObject
             $status = 200                                                  # the SDK throws on any non-success status
@@ -555,6 +571,7 @@ $response.results | Select-Object -First 10 |
 # ------------------------------------------------------------------------------------------------
 # 7. Objects -> JSON text -> file. -Depth 10 keeps nested arrays (Apps) intact; default depth is 2.
 # ------------------------------------------------------------------------------------------------
+# LOCAL RESPONSE FILE: save hunting results only; the access token is not part of this JSON payload.
 $response | ConvertTo-Json -Depth 10 | Set-Content -Path $OutFile -Encoding utf8     # PS 7: UTF-8 without BOM
 Write-Host "Saved -> $OutFile" -ForegroundColor Green
 

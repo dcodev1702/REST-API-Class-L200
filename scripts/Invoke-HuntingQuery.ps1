@@ -13,7 +13,7 @@
 
     Three ways to authenticate - run each so learners experience the difference:
 
-      AppOnly      OAuth 2.0 client-credentials flow, done by hand with Invoke-RestMethod so you can see the
+    Secret       OAuth 2.0 client-credentials flow, done by hand with Invoke-RestMethod so you can see the
                    token request as a REST call. Uses the app registration created by New-HuntingAppRegistration.ps1
                    (Application permission ThreatHunting.Read.All + tenant-wide admin consent + 12-month secret).
                    No user is involved; the token carries a "roles" claim.
@@ -43,11 +43,11 @@
     account, from the EntraIdSignInEvents table (requires Microsoft Entra ID P2).
 
 .PARAMETER AuthMode
-    AppOnly (default), Certificate, or Delegated.
+    Secret (default), Certificate, or Delegated.
 .PARAMETER TenantId
-    Directory (tenant) ID or verified domain. Required for AppOnly unless present in the settings file.
+    Directory (tenant) ID or verified domain. Required for Secret unless present in the settings file.
 .PARAMETER ClientId
-    Application (client) ID. Required for AppOnly unless present in the settings file.
+    Application (client) ID. Required for Secret unless present in the settings file.
 .PARAMETER ClientSecret
     Client secret as a SecureString. If omitted, $env:HUNT_CLIENT_SECRET is used, otherwise you are prompted.
 .PARAMETER CertificateThumbprint
@@ -68,7 +68,7 @@
     Settings JSON written by New-HuntingAppRegistration.ps1. Default: HuntingDemo.settings.json next to this script.
 
 .EXAMPLE
-    .\scripts\Invoke-HuntingQuery.ps1                           # AppOnly, everything from scripts\HuntingDemo.settings.json
+    .\scripts\Invoke-HuntingQuery.ps1                           # Secret, everything from scripts\HuntingDemo.settings.json
 .EXAMPLE
     .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -Hours 24
 .EXAMPLE
@@ -76,7 +76,7 @@
 .EXAMPLE
     .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate -TokenOutFile .\certificate-token.jwt
 .EXAMPLE
-    .\scripts\Invoke-HuntingQuery.ps1 -AuthMode AppOnly -TenantId <guid> -ClientId <guid> -Environment AzureGov
+    .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret -TenantId <guid> -ClientId <guid> -Environment AzureGov
 
 .LINK
     https://learn.microsoft.com/graph/api/security-security-runhuntingquery
@@ -89,8 +89,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('AppOnly', 'Certificate', 'Delegated')]
-    [string] $AuthMode = 'AppOnly',
+    [ValidateSet('Secret', 'Certificate', 'Delegated')]
+    [string] $AuthMode = 'Secret',
 
     [string] $TenantId,
 
@@ -348,17 +348,17 @@ $hdrs     = $null
 try {
     switch ($AuthMode) {
 
-        'AppOnly' {
+        'Secret' {
             # ----------------------------------------------------------------------------------------
             # 3a. Get a token - OAuth 2.0 client-credentials flow. The token endpoint is a REST API too.
             # ----------------------------------------------------------------------------------------
-            if (-not $TenantId -or -not $ClientId) { throw 'AppOnly mode needs -TenantId and -ClientId (or HuntingDemo.settings.json from New-HuntingAppRegistration.ps1).' }
+            if (-not $TenantId -or -not $ClientId) { throw 'Secret mode needs -TenantId and -ClientId (or HuntingDemo.settings.json from New-HuntingAppRegistration.ps1).' }
             if (-not $ClientSecret) {
                 $ClientSecret = if ($env:HUNT_CLIENT_SECRET) { ConvertTo-SecureString -String $env:HUNT_CLIENT_SECRET -AsPlainText -Force }
                                 else { Read-Host -Prompt 'Client secret' -AsSecureString }
             }
 
-            # APP-ONLY TOKEN REQUEST: the secret is decrypted at the last possible moment and sent only to
+            # SECRET TOKEN REQUEST (APP-ONLY): the secret is decrypted at the last possible moment and sent only to
             # Entra's HTTPS token endpoint. It is never sent to the Microsoft Graph hunting endpoint.
             $form = @{                                                    # hashtable -> application/x-www-form-urlencoded
                 client_id     = $ClientId

@@ -782,7 +782,7 @@ const STEPS = [
   },
 
   { n:13, node:'n-token', edge:null, zones:['z-token'], tone:'safe', pkt:'JWT', dur:600, chatAfter:true,
-    chat:[{who:'agent', type:true, t:'Done. Run <b>-AuthMode AppOnly</b>, then <b>Certificate</b>, then <b>Delegated</b>. Each complete JWT is copied to the clipboard.'}],
+    chat:[{who:'agent', type:true, t:'Done. Run <b>-AuthMode Secret</b>, then <b>Certificate</b>, then <b>Delegated</b>. Each complete JWT is copied to the clipboard.'}],
     inspector:{tone:'safe', toneLabel:'CONSEQUENCE', title:'What changes at the token endpoint',
       rows:[
       {t:'POST /oauth2/v2.0/token &middot; grant_type = client_credentials &middot; scope = https://graph.microsoft.com/.default'},

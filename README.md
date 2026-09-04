@@ -24,7 +24,7 @@
 | --- | --- |
 | [`REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
 | [`Sim-App-Registration-Admin-Consent.html`](class_content/Sim-App-Registration-Admin-Consent.html) | 13-step simulation of creating the app registration, correlated training certificate, client secret, service principal, and programmatic admin consent through Microsoft Graph. |
-| [`Sim-AppOnly-Client-Credentials.html`](class_content/Sim-AppOnly-Client-Credentials.html) | 12-step simulation of OpenID discovery, the OAuth 2.0 client-credentials token request, `runHuntingQuery`, error boundaries, and JSON output. |
+| [`Sim-Secret-Client-Credentials.html`](class_content/Sim-Secret-Client-Credentials.html) | 12-step simulation of Secret mode: OpenID discovery, the app-only OAuth 2.0 client-credentials token request, `runHuntingQuery`, error boundaries, and JSON output. |
 | [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated Windows Web Account Manager sign-in, admin consent, the `scp` claim, and the Graph hunting call. |
 | [`Identity_101.md`](extras/Identity_101.md) | Supplemental primer on app-only scopes, client secrets, certificates, managed identities, and Microsoft Graph application permissions. |
 | [`Identity_102.md`](extras/Identity_102.md) | Deep dive into `principalId`, `resourceId`, and `appRoleId` for managed-identity app-role assignments. |
@@ -33,7 +33,7 @@
 | [`rest-api-demo-flow-neon.svg`](images/rest-api-demo-flow-neon.svg) · [`rest-api-demo-flow-neon.png`](images/rest-api-demo-flow-neon.png) | Dark-neon sequence diagram of the complete demo flow: endpoint discovery, OAuth token request, Graph hunting query, JSON response, and local persistence. |
 | [`New-HuntingAppRegistration.ps1`](scripts/New-HuntingAppRegistration.ps1) | One-time setup. Creates a uniquely named app registration, consent, secret, and a 12-month self-signed certificate named `<app registration name> - TRAINING`, copied into `Cert:\CurrentUser\My` through .NET `X509Store`. Its `TRAINING ONLY` details list all app and tenant IDs for correlation. |
 | [`Remove-HuntingAppRegistration.ps1`](scripts/Remove-HuntingAppRegistration.ps1) | One-command teardown. Reads the generated settings file, revokes every app secret and registered certificate key, removes the correlated local private-key certificate and service principal, deletes the app registration, then removes the settings file. Supports `-WhatIf` and one high-impact confirmation. |
-| [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode AppOnly`, `Certificate`, or `Delegated`. It clears stale token state and the clipboard first, then copies the complete JWT to the clipboard for jwt.ms and optionally saves it to a file. |
+| [`Invoke-HuntingQuery.ps1`](scripts/Invoke-HuntingQuery.ps1) | The live demo. `-AuthMode Secret`, `Certificate`, or `Delegated`. It clears stale token state and the clipboard first, then copies the complete JWT to the clipboard for jwt.ms and optionally saves it to a file. |
 | [`SignIns-Last24h.kql`](SignIns-Last24h.kql) | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 | [`README-Facilitator-Notes.md`](README-Facilitator-Notes.md) | Presenter runbook: slide outline, day-before checklist, live-demo script, sources and facts to state precisely. |
 
@@ -67,8 +67,8 @@ cd REST-API-Class-L200
 # 3. Keep the secret out of the scripts for the session
 $env:HUNT_CLIENT_SECRET = '<paste the secret>'        # or skip this and let the script prompt
 
-# 4. Run with a client secret. The complete JWT is copied to the clipboard automatically.
-.\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt
+# 4. Run Secret mode (app-only client credentials). The complete JWT is copied to the clipboard automatically.
+.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret -TokenOutFile .\secret-token.jwt
 
 # 5. Run app-only with the correlated training certificate (no secret or user)
 .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate -TokenOutFile .\certificate-token.jwt
@@ -99,7 +99,7 @@ Three REST calls, all visible in the console output:
 | 2 | `POST /security/runHuntingQuery` | An *action* is a POST even though it only reads; Bearer header; JSON body; `schema[]` + `results[]` = arrays of objects. |
 | 3 | `ConvertTo-Json -Depth 10` | The default depth of 2 truncates nested arrays (`Apps`) — the number-one JSON trap in PowerShell. |
 
-`Certificate` uses the same app-only `/.default` scope and produces the same `roles` claim as `AppOnly`; only the proof changes from a shared secret to a certificate-signed client assertion. `Delegated` uses the custom public client through Windows Web Account Manager, with **no certificate and no client secret**, so its token contains `scp` and user claims. Every mode clears the old clipboard and transient token variables, copies the complete new JWT to the clipboard, and then calls Graph. `-TokenOutFile` is an optional second copy on disk.
+`Certificate` uses the same app-only `/.default` scope and produces the same `roles` claim as `Secret`; only the proof changes from a shared secret to a certificate-signed client assertion. `Delegated` uses the custom public client through Windows Web Account Manager, with **no certificate and no client secret**, so its token contains `scp` and user claims. Every mode clears the old clipboard and transient token variables, copies the complete new JWT to the clipboard, and then calls Graph. `-TokenOutFile` is an optional second copy on disk.
 
 ## Public vs Azure Government — how endpoints are resolved
 
@@ -148,7 +148,7 @@ Sign-in scopes requested: `User.Read`, `RoleManagement.Read.Directory`, `Applica
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
-| `-AuthMode` | `AppOnly` | `AppOnly` (secret), `Certificate` (app-only signed assertion), or `Delegated` (WAM user; no cert/secret). |
+| `-AuthMode` | `Secret` | `Secret` (app-only client secret), `Certificate` (app-only signed assertion), or `Delegated` (WAM user; no cert/secret). |
 | `-TenantId`, `-ClientId` | from `scripts\HuntingDemo.settings.json` | Required for every mode if no settings file. |
 | `-ClientSecret` | `$env:HUNT_CLIENT_SECRET`, else prompt | `SecureString`. |
 | `-CertificateThumbprint` | from `scripts\HuntingDemo.settings.json` | Override for a certificate with a private key in `Cert:\CurrentUser\My`. |
@@ -188,7 +188,7 @@ Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP
 
 Open any simulator from `class_content`, select **Start simulation**, then choose **Run the script** or **Run the call**. Use **Space** or **→** to advance, **←** to step back, the numbered progress segments to jump, and **Autoplay** for an unattended walkthrough. The **Slides** control returns to the deck.
 
-Recommended sequence: registration and consent → app-only secret → app-only certificate → delegated sign-in. Compare the two app-only `roles` tokens with the delegated `scp` token at jwt.ms.
+Recommended sequence: registration and consent → `Secret` (app-only) → `Certificate` (app-only) → `Delegated`. Compare the two app-only `roles` tokens with the delegated `scp` token at jwt.ms.
 
 ## The diagram
 

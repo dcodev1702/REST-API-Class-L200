@@ -9,7 +9,7 @@
 | --- | --- |
 | `class_content/REST-APIs-JSON-Graph-Security-API.html` | The 20-slide deck. Open in any browser (Edge recommended). Self-contained — no network needed to present. |
 | `class_content/Sim-App-Registration-Admin-Consent.html` | 13-step walkthrough of the setup script: app registration, correlated training certificate, secret, service principal, `ThreatHunting.Read.All`, and programmatic admin consent. |
-| `class_content/Sim-AppOnly-Client-Credentials.html` | 12-step walkthrough of the app-only call: discovery, client-credentials token, `runHuntingQuery`, 401/403 boundaries, and JSON output. |
+| `class_content/Sim-Secret-Client-Credentials.html` | 12-step walkthrough of Secret mode: discovery, app-only client-credentials token, `runHuntingQuery`, 401/403 boundaries, and JSON output. |
 | `class_content/Sim-Delegated-Sign-In-Consent.html` | 13-step walkthrough of delegated WAM sign-in: Windows account broker, admin-consent boundary, `scp`, Graph call, and JSON output. |
 | `extras/Identity_101.md` | Optional identity primer: app-only scopes, secrets, certificates, managed identities, and Graph application permissions. |
 | `extras/Identity_102.md` | Optional app-role-assignment deep dive: `principalId`, `resourceId`, and `appRoleId`. |
@@ -17,7 +17,7 @@
 | `images/JSON-Anatomy-Diagram.svg` / `.png` | Stand-alone "Anatomy of a JSON Object" diagram (object, key/value pairs, six data types, array of objects, object within an object, PowerShell 7 type mapping). Same diagram is embedded on slide 8. |
 | `scripts/New-HuntingAppRegistration.ps1` | Creates the app, consent, secret, and a 12-month self-signed certificate named `<app registration name> - TRAINING`. .NET `X509Store` copies its non-exportable private key to `Cert:\CurrentUser\My`; the `TRAINING ONLY` details block lists every correlation ID. |
 | `scripts/Remove-HuntingAppRegistration.ps1` | Correlated teardown. Reads `HuntingDemo.settings.json`, revokes all secrets and registered certificate keys, removes the exact local certificate and service principal, deletes the app registration, then deletes the settings file. `-WhatIf` performs only validation and `GET` calls. |
-| `scripts/Invoke-HuntingQuery.ps1` | Runs `AppOnly`, `Certificate`, or `Delegated`. Before auth it clears stale demo-token variables and the clipboard; afterwards it copies the complete JWT to the clipboard and optionally a `.jwt` file. |
+| `scripts/Invoke-HuntingQuery.ps1` | Runs `Secret`, `Certificate`, or `Delegated`. Before auth it clears stale demo-token variables and the clipboard; afterwards it copies the complete JWT to the clipboard and optionally a `.jwt` file. |
 | `SignIns-Last24h.kql` | The hunting query: every user who signed in successfully in the last 24 hours, one row per account. Runs unchanged in Defender > Advanced hunting. |
 
 ### Presenting the deck
@@ -86,7 +86,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 6. **Dry run all three modes** (allow 1–2 minutes after step 5 for replication):
 
    ```powershell
-   .\scripts\Invoke-HuntingQuery.ps1 -TokenOutFile .\app-only-token.jwt
+   .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret -TokenOutFile .\secret-token.jwt
    .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate -TokenOutFile .\certificate-token.jwt
    .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated -TokenOutFile .\delegated-token.jwt
    ```
@@ -97,7 +97,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 
 ## Live-demo runbook (slide 20)
 
-1. **Run 1 — AppOnly secret.** `.\scripts\Invoke-HuntingQuery.ps1`. Narrate discovery → secret token POST → hunting POST. Paste the clipboard into jwt.ms and show `roles`.
+1. **Run 1 — Secret.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret`. Narrate discovery → secret token POST → hunting POST. This remains an app-only client-credentials flow. Paste the clipboard into jwt.ms and show `roles`.
 2. **Run 2 — Certificate.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate`. Match `<app registration name> - TRAINING` in the local store to the app, then use the `TRAINING ONLY` details block/settings for client ID, object ID and tenant ID correlation. The private key signs a client assertion; Entra stores only the public key. Paste the new clipboard token into jwt.ms: `roles` is unchanged because the identity and permission are unchanged.
 3. **Run 3 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated`. Windows Web Account Manager presents the account selector. This public-client flow uses no certificate or client secret. Compare the resulting `scp` and user claims with both app-only tokens.
 4. **Teardown.** Clear the clipboard (`Set-Clipboard -Value ''`) and remove saved `.jwt` files. Preview `.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf`; verify its app IDs and certificate thumbprint against the setup output, then run `.\scripts\Remove-HuntingAppRegistration.ps1`. The script prompts once and removes the secrets, registered certificate keys, local private-key certificate, enterprise app/consent, app registration, environment secret, and settings file.

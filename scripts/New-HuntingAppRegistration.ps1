@@ -660,7 +660,7 @@ Write-Host "Store it outside the script, e.g.  `$env:HUNT_CLIENT_SECRET = '<secr
 Write-Host "Certificate auth: .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate" -ForegroundColor Cyan
 Write-Host "Portal check: Entra admin center > App registrations > '$DisplayName' > API permissions  (status: Granted for <tenant>)." -ForegroundColor DarkGray
 Write-Host "Alternative consent URL: $($ep.LoginHost)/$tenant/adminconsent?client_id=$($app.appId)" -ForegroundColor DarkGray
-Write-Host "`nAllow 1-2 minutes for replication, then run:  .\scripts\Invoke-HuntingQuery.ps1 -AuthMode AppOnly`n" -ForegroundColor Cyan
+Write-Host "`nAllow 1-2 minutes for replication, then run:  .\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret`n" -ForegroundColor Cyan
 
 # Return an object for pipeline use (secret as SecureString)
 [pscustomobject]@{

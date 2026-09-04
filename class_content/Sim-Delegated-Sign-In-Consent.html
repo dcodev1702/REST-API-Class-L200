@@ -736,7 +736,7 @@ const STEPS = [
       {t:'result &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: access token with user claims and scp'}],
       note:'Compare app-only: secret or certificate proves the app. Here WAM authenticates a user for a public client.'},
     code:{title:'credential boundary', numbers:false, lines:[
-      {t:'<span class="cm"># AppOnly      → client secret → roles claim</span>'},
+      {t:'<span class="cm"># Secret       → client secret → roles claim</span>'},
       {t:'<span class="cm"># Certificate  → signed assertion → roles claim</span>'},
       {t:'<span class="cm"># Delegated    → WAM user sign-in → scp + user claims</span>', hl:true}]}
   },

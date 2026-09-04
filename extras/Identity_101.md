@@ -182,7 +182,7 @@ The workshop setup creates and registers the certificate automatically:
     -CertificateValidityMonths 12
 ```
 
-The script uses .NET `CertificateRequest` to create an RSA-2048/SHA-256 self-signed certificate in memory. It then imports the key as non-exportable and copies the certificate into Current User > Personal through .NET `X509Store.Add()`.
+The script uses .NET `CertificateRequest` to create an RSA-4096/SHA-256 self-signed certificate in memory. It then imports the key as non-exportable and copies the certificate into Current User > Personal through .NET `X509Store.Add()`.
 
 The certificate name is intentionally readable and matches the app registration:
 

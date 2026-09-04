@@ -141,7 +141,7 @@ EntraIdSignInEvents                              // Defender XDR advanced huntin
 | `-PreviewName` | off | Signs in, prints the generated default name, and exits before any Graph or file changes. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Identifiers, endpoints and certificate metadata only — never the secret or private key. |
 
-Credential setup: .NET `CertificateRequest` creates an RSA/SHA-256 certificate named `<app registration display name> - TRAINING`; .NET `X509Store.Add()` copies it to Current User > Personal; `PATCH /applications/{id}` uploads only its public key. The `TRAINING ONLY CERTIFICATE DETAILS` block lists the app name, client ID, object ID, tenant ID, thumbprints and validity for correlation. Graph calls then continue with `POST /applications/{id}/addPassword`, `POST /servicePrincipals`, `POST /servicePrincipals/{graphSpId}/appRoleAssignedTo`, and optional `POST /oauth2PermissionGrants`.
+Credential setup: .NET `CertificateRequest` creates an RSA-4096/SHA-256 certificate named `<app registration display name> - TRAINING`; .NET `X509Store.Add()` copies it to Current User > Personal; `PATCH /applications/{id}` uploads only its public key. The `TRAINING ONLY CERTIFICATE DETAILS` block lists the app name, client ID, object ID, tenant ID, thumbprints and validity for correlation. Graph calls then continue with `POST /applications/{id}/addPassword`, `POST /servicePrincipals`, `POST /servicePrincipals/{graphSpId}/appRoleAssignedTo`, and optional `POST /oauth2PermissionGrants`.
 Sign-in scopes requested: `Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All` (+ `DelegatedPermissionGrant.ReadWrite.All` with `-IncludeDelegatedScope`).
 
 ### `Invoke-HuntingQuery.ps1`

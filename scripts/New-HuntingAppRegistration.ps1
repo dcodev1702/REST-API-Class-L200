@@ -18,7 +18,7 @@
          app role id (application permission) instead of hard-coding a GUID.
       3. POST /applications                                           -> the app registration (single tenant)
          with requiredResourceAccess = Microsoft Graph / ThreatHunting.Read.All (Role).
-      4. Create an RSA self-signed certificate in Cert:\CurrentUser\My (12 months by default) and
+            4. Create an RSA-4096/SHA-256 self-signed certificate in Cert:\CurrentUser\My (12 months by default) and
          PATCH /applications/{id}                                    -> upload its public key as a credential.
       5. POST /applications/{id}/addPassword                          -> client secret, endDateTime = now + 12 months.
       6. POST /servicePrincipals                                      -> the enterprise application (service principal).
@@ -202,9 +202,9 @@ function New-TrainingCertificate {
     $storedThumbprint = $null
 
     try {
-        # LOCAL KEYPAIR CREATION: RSA generates the public/private keypair in this PowerShell process.
+        # LOCAL KEYPAIR CREATION: RSA generates a 4096-bit public/private keypair in this PowerShell process.
         # The private key remains local and is never included in a Microsoft Graph request.
-        $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+        $rsa = [System.Security.Cryptography.RSA]::Create(4096)
         $certificateRequest = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
             $DistinguishedName,
             $rsa,

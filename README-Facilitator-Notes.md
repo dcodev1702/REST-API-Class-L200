@@ -80,7 +80,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
    .\scripts\New-HuntingAppRegistration.ps1 -IncludeDelegatedScope -CertificateValidityMonths 12
    ```
 
-   The script creates the app, builds a 12-month RSA/SHA-256 certificate named `<app registration name> - TRAINING`, copies it through `X509Store.Add()` into Current User > Personal, and `PATCH`es its public key into the app before issuing the secret. The `TRAINING ONLY CERTIFICATE DETAILS` block includes app name, client ID, object ID and tenant ID. It then creates the service principal and app-role assignment.
+   The script creates the app, builds a 12-month RSA-4096/SHA-256 certificate named `<app registration name> - TRAINING`, copies it through `X509Store.Add()` into Current User > Personal, and `PATCH`es its public key into the app before issuing the secret. The `TRAINING ONLY CERTIFICATE DETAILS` block includes app name, client ID, object ID and tenant ID. It then creates the service principal and app-role assignment.
    Store the secret outside the scripts, e.g. `$env:HUNT_CLIENT_SECRET = '<secret>'` for the demo session (the demo script picks it up; otherwise it prompts). Prefer a certificate or managed identity for anything beyond a demo.
    Portal check: Entra admin center → App registrations → *Graph Security API - Hunting Demo - &lt;alias&gt; - &lt;6 random characters&gt;* → API permissions → status **Granted for &lt;tenant&gt;**.
 6. **Dry run all three modes** (allow 1–2 minutes after step 5 for replication):

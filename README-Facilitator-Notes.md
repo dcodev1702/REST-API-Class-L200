@@ -73,7 +73,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 3. **PowerShell 7.3+** — `pwsh`, `$PSVersionTable.PSVersion` ≥ 7.3. Certificate naming uses the .NET 7 X.500 builder; Windows PowerShell 5.1 also lacks the required REST switches.
 4. **Graph PowerShell SDK** (needed by setup and token acquisition):
    `Install-Module Microsoft.Graph.Authentication -Scope CurrentUser`
-5. **Create the app registration** — sign in as a **Privileged Role Administrator** (or Global Administrator). Cloud Application Administrator can create the app but cannot consent to Microsoft Graph *application* permissions.
+5. **Create the app registration** — sign in as an active **Privileged Role Administrator** (or Global Administrator). Cloud Application Administrator can create the app but cannot consent to Microsoft Graph *application* permissions. Before its first resource write, the script verifies its delegated scopes, the operator's active transitive role (including a PIM activation), and the target `ThreatHunting.Read.All` permission.
 
    ```powershell
    .\scripts\New-HuntingAppRegistration.ps1 -PreviewName # optional name preview; creates nothing
@@ -114,6 +114,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 - Defender XDR advanced hunting API (legacy; quotas, retirement notice) — <https://learn.microsoft.com/defender-xdr/api-advanced-hunting>
 - Permissions and consent overview — <https://learn.microsoft.com/entra/identity-platform/permissions-consent-overview>
 - Grant tenant-wide admin consent (portal, PowerShell, Graph API) — <https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent>
+- List a user's transitive memberships (groups, directory roles, administrative units) — <https://learn.microsoft.com/graph/api/user-list-transitivememberof?view=graph-rest-1.0>
 - Create application — <https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0>
 - application: addPassword — <https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0>
 - application: removePassword — <https://learn.microsoft.com/graph/api/application-removepassword?view=graph-rest-1.0>

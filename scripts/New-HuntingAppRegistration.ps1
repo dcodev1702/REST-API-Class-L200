@@ -13,9 +13,11 @@
     Every step is a Microsoft Graph REST call issued with Invoke-MgGraphRequest, so the class sees that the
     Entra admin center is just another REST client:
 
-      1. Sign in (Connect-MgGraph) with the delegated scopes needed to manage apps and grant consent.
+      1. Sign in (Connect-MgGraph), verify every requested delegated scope, and use read-only Graph calls to
+         confirm that Privileged Role Administrator or Global Administrator is active (including through PIM).
       2. GET  /servicePrincipals?$filter=appId eq '<Microsoft Graph>'  -> look up the ThreatHunting.Read.All
-         app role id (application permission) instead of hard-coding a GUID.
+         app role id (application permission) instead of hard-coding a GUID. No resource writes occur before
+         both permission checks pass.
       3. POST /applications                                           -> the app registration (single tenant)
          with requiredResourceAccess = Microsoft Graph / ThreatHunting.Read.All (Role).
             4. Create an RSA-4096/SHA-256 self-signed certificate in Cert:\CurrentUser\My (12 months by default) and
@@ -75,6 +77,8 @@
     https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments
 .LINK
     https://learn.microsoft.com/graph/api/oauth2permissiongrant-post
+.LINK
+    https://learn.microsoft.com/graph/api/user-list-transitivememberof
 .LINK
     https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent
 #>
@@ -160,11 +164,60 @@ function Resolve-DemoEndpoints {
 
 function Invoke-Graph {
     # Thin wrapper so every call prints the verb + URI (the REST anatomy) before it runs.
-    param([string] $Method, [string] $Uri, $Body)
+    param([string] $Method, [string] $Uri, $Body, [hashtable] $Headers)
     Write-Host ("  {0,-6} {1}" -f $Method.ToUpper(), $Uri) -ForegroundColor DarkGray
     $p = @{ Method = $Method; Uri = $Uri; OutputType = 'PSObject' }
     if ($null -ne $Body) { $p.Body = ($Body | ConvertTo-Json -Depth 10); $p.ContentType = 'application/json' }
+    if ($Headers) { $p.Headers = $Headers }
     Invoke-MgGraphRequest @p
+}
+
+function Assert-SetupPermissions {
+    param(
+        [Parameter(Mandatory)]
+        $Context,
+
+        [Parameter(Mandatory)]
+        [string[]] $RequiredScopes,
+
+        [Parameter(Mandatory)]
+        [string] $GraphBaseUri
+    )
+
+    $grantedScopes = @($Context.Scopes)
+    $missingScopes = @($RequiredScopes | Where-Object { $grantedScopes -notcontains $_ })
+    if ($missingScopes.Count -gt 0) {
+        throw "Permission preflight failed before resource creation. The Graph token is missing delegated scope(s): $($missingScopes -join ', '). Disconnect-MgGraph and run the setup again to grant the requested scopes."
+    }
+
+    $acceptedRoleNames = @('Privileged Role Administrator', 'Global Administrator')
+    $roleTemplates = @(
+        (Invoke-Graph -Method GET -Uri "$GraphBaseUri/directoryRoleTemplates?`$select=id,displayName").value |
+            Where-Object { $_.displayName -in $acceptedRoleNames }
+    )
+    $missingRoleTemplates = @($acceptedRoleNames | Where-Object { $_ -notin @($roleTemplates.displayName) })
+    if ($missingRoleTemplates.Count -gt 0) {
+        throw "Permission preflight could not resolve required Entra role template(s): $($missingRoleTemplates -join ', '). No resources have been created."
+    }
+
+    $membershipHeaders = @{ ConsistencyLevel = 'eventual' }
+    $activeRoles = @(
+        (Invoke-Graph -Method GET `
+            -Uri "$GraphBaseUri/me/transitiveMemberOf/microsoft.graph.directoryRole?`$select=displayName,roleTemplateId&`$count=true" `
+            -Headers $membershipHeaders).value
+    )
+    $acceptedRoleTemplateIds = @($roleTemplates.id)
+    $authorizedRole = $activeRoles |
+        Where-Object { $_.roleTemplateId -in $acceptedRoleTemplateIds } |
+        Select-Object -First 1
+    if (-not $authorizedRole) {
+        $activeRoleNames = @($activeRoles.displayName | Where-Object { $_ } | Sort-Object -Unique)
+        $activeRoleSummary = if ($activeRoleNames.Count -gt 0) { $activeRoleNames -join ', ' } else { 'none' }
+        throw "Permission preflight failed before resource creation. '$($Context.Account)' must have an active Privileged Role Administrator or Global Administrator role. Active roles: $activeRoleSummary. Activate PIM and run the setup again."
+    }
+
+    Write-Host "        delegated scopes verified: $($RequiredScopes -join ', ')" -ForegroundColor Green
+    Write-Host "        active Entra role verified: $($authorizedRole.displayName)" -ForegroundColor Green
 }
 
 function New-RandomAlphaNumericString {
@@ -284,7 +337,7 @@ $ep = Resolve-DemoEndpoints -TenantId $TenantId -Environment $Environment
 Write-Host "`nEndpoints  : $($ep.Source)" -ForegroundColor Cyan
 Write-Host "Login host : $($ep.LoginHost)   Graph host : $($ep.GraphHost)   Environment : $($ep.Environment) ($($ep.MgEnvironment))`n" -ForegroundColor DarkGray
 
-$scopes = @('Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All')
+$scopes = @('User.Read', 'RoleManagement.Read.Directory', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All')
 if ($IncludeDelegatedScope) { $scopes += 'DelegatedPermissionGrant.ReadWrite.All' }
 $connect = @{ Scopes = $scopes; Environment = $ep.MgEnvironment; NoWelcome = $true }
 if ($TenantId) { $connect.TenantId = $TenantId }
@@ -321,9 +374,13 @@ if ($PreviewName) {
 }
 
 # ------------------------------------------------------------------------------------------------
-# 2. Look up Microsoft Graph's service principal and the ThreatHunting.Read.All app role (no hard-coded GUIDs).
+# 2. Validate every required permission and active admin role before the first resource write, then look up
+#    Microsoft Graph's service principal and the ThreatHunting.Read.All app role (no hard-coded GUIDs).
 # ------------------------------------------------------------------------------------------------
-Write-Host "Step 2  Resolve the '$Permission' permission on the Microsoft Graph service principal" -ForegroundColor Cyan
+Write-Host 'Step 2  Permission and active-role preflight (read-only)' -ForegroundColor Cyan
+Assert-SetupPermissions -Context $ctx -RequiredScopes $scopes -GraphBaseUri $g
+
+Write-Host "        resolve '$Permission' on the Microsoft Graph service principal" -ForegroundColor Cyan
 # PERMISSION LOOKUP: read Microsoft Graph's published permission IDs. This does not grant consent yet.
 $graphSp = (Invoke-Graph -Method GET -Uri "$g/servicePrincipals?`$filter=appId%20eq%20'$GraphAppId'&`$select=id,appId,displayName,appRoles,oauth2PermissionScopes").value | Select-Object -First 1
 if (-not $graphSp) { throw 'Microsoft Graph service principal not found in this tenant.' }

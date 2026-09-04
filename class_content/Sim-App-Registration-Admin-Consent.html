@@ -621,17 +621,20 @@ const STEPS = [
   { n:1, node:'n-admin', edge:null, zones:['z-admin'], tone:'az', pkt:'RUN', dur:600,
     chat:[{who:'user', type:true, t:'.\\New-HuntingAppRegistration.ps1 -IncludeDelegatedScope -CertificateValidityMonths 12'},
       {who:'sys', t:'Endpoints : OpenID discovery &rarr; login.microsoftonline.com &middot; graph.microsoft.com'},
-      {who:'sys', t:'Connect-MgGraph -Scopes Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All'}],
+      {who:'sys', t:'Connect-MgGraph -Scopes User.Read, RoleManagement.Read.Directory, Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All'},
+      {who:'sys', t:'GET /directoryRoleTemplates &middot; GET /me/transitiveMemberOf/microsoft.graph.directoryRole'},
+      {who:'sys', t:'Preflight passed &middot; all scopes present &middot; Privileged Role Administrator active &middot; nothing written'}],
     inspector:{tone:'note', toneLabel:'SIGN-IN · DELEGATED', title:'The admin signs in — the script acts as the admin',
       rows:[
       {t:'account : admin@contoso.onmicrosoft.com', k:true},
       {t:'role &nbsp;&nbsp;&nbsp;: Privileged Role Administrator'},
       {sec:'delegated scopes the script requests'},
+      {t:'User.Read + RoleManagement.Read.Directory &mdash; read-only identity / active-role preflight'},
       {t:'Application.ReadWrite.All &nbsp;&nbsp;&nbsp;&nbsp;&mdash; create the app, add the secret'},
       {t:'AppRoleAssignment.ReadWrite.All &mdash; grant the app role (= consent)'},
       {t:'DelegatedPermissionGrant.ReadWrite.All &mdash; create the WAM delegated grant'},
       {t:'Cloud Application Administrator: everything except consenting to Graph app roles', strike:true}],
-      note:'Every step from here is a REST call to Microsoft Graph. The Entra admin center makes the same calls.'},
+      note:'The script validates every scope and the active admin role before the first write. The Entra admin center makes the same Graph calls.'},
     log:[]
   },
 

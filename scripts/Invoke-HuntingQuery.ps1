@@ -26,8 +26,8 @@
                    New-HuntingAppRegistration.ps1. No user is involved; the token carries a "roles" claim.
 
     Before authentication, the script clears the clipboard and transient demo-token variables. After authentication,
-    the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. -TokenOutFile optionally
-    writes the same complete JWT to disk.
+    the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. Secret mode also prints the
+    token's unique-per-token (uti) value. -TokenOutFile optionally writes the same complete JWT to disk.
 
     Endpoints are NOT hard-coded. Resolution order:
       1. -Environment Public | AzureGov, when given (URLs pulled from Get-MgEnvironment when the SDK is present).
@@ -80,6 +80,8 @@
 
 .LINK
     https://learn.microsoft.com/graph/api/security-security-runhuntingquery
+.LINK
+    https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference
 .LINK
     https://learn.microsoft.com/defender-xdr/advanced-hunting-entraidsigninevents-table
 .LINK
@@ -157,6 +159,31 @@ function ConvertTo-DemoSecureString {
     foreach ($character in $Value.ToCharArray()) { $secureValue.AppendChar($character) }
     $secureValue.MakeReadOnly()
     $secureValue
+}
+
+function Get-DemoJwtPayload {
+    param(
+        [Parameter(Mandatory)]
+        [string] $AccessToken
+    )
+
+    $segments = $AccessToken.Split('.')
+    if ($segments.Count -ne 3) { throw 'The access token is not a three-segment JWT.' }
+
+    $payload = $segments[1].Replace('-', '+').Replace('_', '/')
+    switch ($payload.Length % 4) {
+        0 { }
+        2 { $payload += '==' }
+        3 { $payload += '=' }
+        default { throw 'The JWT payload is not valid Base64url.' }
+    }
+
+    try {
+        [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
+    }
+    catch {
+        throw "The JWT payload could not be decoded: $($_.Exception.Message)"
+    }
 }
 
 function Import-DemoMsal {
@@ -374,6 +401,10 @@ try {
             $accessToken = $tokenResponse.access_token
             $token = ConvertTo-DemoSecureString -Value $accessToken
             Write-Host ("Token acquired: type={0}, expires in {1}s  (paste into https://jwt.ms to see aud / roles / exp)" -f $tokenResponse.token_type, $tokenResponse.expires_in) -ForegroundColor Green
+            # DISPLAY ONLY: uti is Entra's unique, per-token identifier. Decoding here does not validate the JWT.
+            $claims = Get-DemoJwtPayload -AccessToken $accessToken
+            if ([string]::IsNullOrWhiteSpace([string] $claims.uti)) { throw "The Secret-mode access token does not contain the expected 'uti' claim." }
+            Write-Host "unique-per-token (uti): $($claims.uti)" -ForegroundColor Cyan
             Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
             $form.Clear()                                                 # drop the plain-text secret as soon as possible
             $form = $null

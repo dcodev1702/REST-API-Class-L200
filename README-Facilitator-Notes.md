@@ -93,11 +93,11 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 
    Every run clears the prior clipboard/token variables and copies the complete JWT to the clipboard for jwt.ms. File capture is optional. Delegated auth requires setup with `-IncludeDelegatedScope`.
 
-   Expected output includes `Clipboard and transient demo-token variables reset`, `Complete JWT copied to clipboard`, `HTTP 200`, the schema/results, and the saved response path.
+   Expected output includes `Clipboard and transient demo-token variables reset`, `unique-per-token (uti): <value>` in Secret mode, `Complete JWT copied to clipboard`, `HTTP 200`, the schema/results, and the saved response path.
 
 ## Live-demo runbook (slide 20)
 
-1. **Run 1 — Secret.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret`. Narrate discovery → secret token POST → hunting POST. This remains an app-only client-credentials flow. Paste the clipboard into jwt.ms and show `roles`.
+1. **Run 1 — Secret.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret`. Narrate discovery → secret token POST → `unique-per-token (uti)` → hunting POST. This remains an app-only client-credentials flow. Run it twice to show that `uti` changes while `appid`/`azp`, `tid`, `aud`, and `roles` remain stable; paste either clipboard token into jwt.ms.
 2. **Run 2 — Certificate.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate`. Match `<app registration name> - TRAINING` in the local store to the app, then use the `TRAINING ONLY` details block/settings for client ID, object ID and tenant ID correlation. The private key signs a client assertion; Entra stores only the public key. Paste the new clipboard token into jwt.ms: `roles` is unchanged because the identity and permission are unchanged.
 3. **Run 3 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated`. Windows Web Account Manager presents the account selector. This public-client flow uses no certificate or client secret. Compare the resulting `scp` and user claims with both app-only tokens.
 4. **Teardown.** Clear the clipboard (`Set-Clipboard -Value ''`) and remove saved `.jwt` files. Preview `.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf`; verify its app IDs and certificate thumbprint against the setup output, then run `.\scripts\Remove-HuntingAppRegistration.ps1`. The script prompts once and removes the secrets, registered certificate keys, local private-key certificate, enterprise app/consent, app registration, environment secret, and settings file.
@@ -126,6 +126,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 - Grant an appRoleAssignment to a service principal — <https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0>
 - Create oAuth2PermissionGrant — <https://learn.microsoft.com/graph/api/oauth2permissiongrant-post?view=graph-rest-1.0>
 - Microsoft Graph PowerShell authentication commands (Connect-MgGraph, Get-MgEnvironment, Invoke-MgGraphRequest) — <https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands>
+- Access token claims reference (`uti` = unique, per-token identifier) — <https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference>
 - MSAL.NET with Windows Web Account Manager — <https://learn.microsoft.com/entra/msal/dotnet/acquiring-tokens/desktop-mobile/wam>
 - Invoke-RestMethod (PowerShell 7) — <https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod>
 - ConvertTo-Json (PowerShell 7) — <https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json>

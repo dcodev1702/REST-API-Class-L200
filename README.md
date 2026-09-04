@@ -99,7 +99,7 @@ Three REST calls, all visible in the console output:
 | 2 | `POST /security/runHuntingQuery` | An *action* is a POST even though it only reads; Bearer header; JSON body; `schema[]` + `results[]` = arrays of objects. |
 | 3 | `ConvertTo-Json -Depth 10` | The default depth of 2 truncates nested arrays (`Apps`) — the number-one JSON trap in PowerShell. |
 
-`Certificate` uses the same app-only `/.default` scope and produces the same `roles` claim as `Secret`; only the proof changes from a shared secret to a certificate-signed client assertion. `Delegated` uses the custom public client through Windows Web Account Manager, with **no certificate and no client secret**, so its token contains `scp` and user claims. Every mode clears the old clipboard and transient token variables, copies the complete new JWT to the clipboard, and then calls Graph. `-TokenOutFile` is an optional second copy on disk.
+`Certificate` uses the same app-only `/.default` scope and produces the same `roles` claim as `Secret`; only the proof changes from a shared secret to a certificate-signed client assertion. `Delegated` uses the custom public client through Windows Web Account Manager, with **no certificate and no client secret**, so its token contains `scp` and user claims. Every mode clears the old clipboard and transient token variables, copies the complete new JWT to the clipboard, and then calls Graph. Secret mode also prints `unique-per-token (uti): <value>`; `uti` changes on every minted token while `appid`/`azp`, `tid`, `aud`, and `roles` remain stable. `-TokenOutFile` is an optional second copy on disk.
 
 ## Public vs Azure Government — how endpoints are resolved
 
@@ -159,7 +159,7 @@ Sign-in scopes requested: `User.Read`, `RoleManagement.Read.Directory`, `Applica
 | `-TokenOutFile` (`-JwtOutFile`) | *(none)* | Optional file copy of the complete JWT. The complete JWT is always copied to the clipboard. Delegated mode requires `-IncludeDelegatedScope` during setup. |
 | `-SettingsFile` | `.\scripts\HuntingDemo.settings.json` | Written by the setup script. |
 
-Console output: resolved endpoints and their source, the three calls, `HTTP <status> | <n> row(s) | request-id`, the `schema` table, the first ten `results`, the saved path, and a round-trip read of the file.
+Console output: resolved endpoints and their source, the three calls, Secret mode's `unique-per-token (uti): <value>`, `HTTP <status> | <n> row(s) | request-id`, the `schema` table, the first ten `results`, the saved path, and a round-trip read of the file.
 
 ### `Remove-HuntingAppRegistration.ps1`
 
@@ -238,7 +238,7 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 - [Create application](https://learn.microsoft.com/graph/api/application-post-applications?view=graph-rest-1.0) · [application: addPassword](https://learn.microsoft.com/graph/api/application-addpassword?view=graph-rest-1.0) · [Grant an appRoleAssignment to a service principal](https://learn.microsoft.com/graph/api/serviceprincipal-post-approleassignments?view=graph-rest-1.0) · [Create oAuth2PermissionGrant](https://learn.microsoft.com/graph/api/oauth2permissiongrant-post?view=graph-rest-1.0)
 - [application: removePassword](https://learn.microsoft.com/graph/api/application-removepassword?view=graph-rest-1.0) · [Update application](https://learn.microsoft.com/graph/api/application-update?view=graph-rest-1.0) · [Delete servicePrincipal](https://learn.microsoft.com/graph/api/serviceprincipal-delete?view=graph-rest-1.0) · [Delete application](https://learn.microsoft.com/graph/api/application-delete?view=graph-rest-1.0)
 - [Add a certificate to an app with Microsoft Graph](https://learn.microsoft.com/graph/applications-how-to-add-certificate) · [Create a self-signed certificate for application authentication](https://learn.microsoft.com/entra/identity-platform/howto-create-self-signed-certificate)
-- [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
+- [Microsoft Graph PowerShell authentication commands](https://learn.microsoft.com/powershell/microsoftgraph/authentication-commands) · [Access token claims reference (`uti`)](https://learn.microsoft.com/entra/identity-platform/access-token-claims-reference) · [Invoke-RestMethod](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/invoke-restmethod) · [ConvertTo-Json](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/convertto-json)
 
 ## Contributing
 

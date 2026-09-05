@@ -182,7 +182,7 @@ Open [`class_content/REST-APIs-JSON-Graph-Security-API.html`](class_content/REST
 | **F** | Full screen |
 | **1–9**, **Home / End** | Jump to slide / first / last |
 
-Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP verbs → why JSON → **JSON anatomy diagram** → JSON types ↔ PowerShell → Graph Security API (endpoint, request, quotas) → `ThreatHunting.Read.All` & admin consent → token flow → the KQL → Step 1 discovery + token → Step 2 `Invoke-RestMethod` switch by switch → Step 3 response → JSON file → switch reference → prerequisites & Microsoft Learn → live demo / Q&A.
+Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP methods, including RFC 10008 `QUERY` → why JSON → **JSON anatomy diagram** → JSON types ↔ PowerShell → Graph Security API (endpoint, request, quotas) → `ThreatHunting.Read.All` & admin consent → token flow → the KQL → Step 1 discovery + token → Step 2 `Invoke-RestMethod` switch by switch → Step 3 response → JSON file → switch reference → prerequisites & Microsoft Learn → live demo / Q&A.
 
 ### Interactive simulations
 

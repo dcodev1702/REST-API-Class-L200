@@ -50,7 +50,7 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 | 3 | REST APIs: the bedrock of the modern era (Cloud · GenAI · Web apps · MCP · SecOps · Automation) | numbered list |
 | 4 | What the letters stand for — REST · API · JSON | big figures |
 | 5 | Anatomy of a REST call — request vs. response | split panes |
-| 6 | Five HTTP verbs, with Graph examples | table |
+| 6 | Six HTTP methods, including RFC 10008 QUERY | table |
 | 7 | JSON: to, through and from every REST API · JSON in PowerShell 7 | split panes |
 | 8 | **Anatomy of a JSON object** (diagram) | diagram |
 | 9 | Six JSON types → PowerShell 7 | table |

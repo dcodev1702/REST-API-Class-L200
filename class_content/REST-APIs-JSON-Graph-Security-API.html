@@ -294,6 +294,8 @@ code,.mono{ font-family:var(--mono); }
 .tbl .cons li{ padding:.55cqh 0 .55cqh 1.8cqw; position:relative; line-height:1.3; }
 .tbl .cons li::before{ content:""; position:absolute; left:0; top:1.15cqh; width:.7cqw; height:.7cqw;
   border-radius:50%; background:var(--az); opacity:.5; }
+.s-methods .tbl{ margin-top:2.2cqh; }
+.s-methods .tbl tbody td{ padding:1.55cqh 2.5cqw 1.55cqh 0; }
 
 /* ---------- slide 9 : vertical timeline ---------- */
 .timeline{ position:relative; margin-top:3.4cqh; padding-left:1cqw; max-width:72cqw; margin-inline:auto; }
@@ -510,30 +512,34 @@ code,.mono{ font-family:var(--mono); }
 </section>
 
     <!-- 6 -->
-<section class="slide" data-kicker="HTTP verbs">
-  <div class="kicker" data-stagger style="--i:0"><span class="n">06 / 20</span> &nbsp;&middot;&nbsp; HTTP verbs</div>
-  <h2 class="title title-sm" data-stagger style="--i:1">Five verbs do <span class="soft">almost everything</span></h2>
+<section class="slide s-methods" data-kicker="HTTP methods">
+  <div class="kicker" data-stagger style="--i:0"><span class="n">06 / 20</span> &nbsp;&middot;&nbsp; HTTP methods</div>
+  <h2 class="title title-sm" data-stagger style="--i:1">Six methods cover <span class="soft">almost everything</span></h2>
   <div class="rule"></div>
   <table class="tbl">
-    <thead><tr><th class="opt">Verb &middot; Graph example</th><th>What it means</th></tr></thead>
+    <thead><tr><th class="opt">Method &middot; example</th><th>What it means &middot; when to use it</th></tr></thead>
     <tbody>
       <tr data-stagger style="--i:2">
         <td class="opt"><b>GET &mdash; read</b><br><span class="tag">GET /v1.0/security/alerts_v2</span></td>
         <td class="cons"><ul><li>Returns a representation; nothing changes server-side. Safe, idempotent, no body &mdash; repeat it freely.</li></ul></td>
       </tr>
       <tr data-stagger style="--i:3">
+        <td class="opt"><b>QUERY &mdash; complex read</b><span class="tag">QUERY /contacts &middot; RFC 10008</span></td>
+        <td class="cons"><ul><li>Safe, idempotent retrieval with query content in the body. Use when filters are too large or complex for a URI &mdash; only when the API advertises support. Microsoft Graph does not currently support it.</li></ul></td>
+      </tr>
+      <tr data-stagger style="--i:4">
         <td class="opt"><b>POST &mdash; create or act</b><span class="tag">POST /v1.0/security/runHuntingQuery</span></td>
         <td class="cons"><ul><li>Creates a resource <i>or</i> runs an action with a body. <code>runHuntingQuery</code> is an action &mdash; that is why our call is a POST.</li></ul></td>
       </tr>
-      <tr data-stagger style="--i:4">
+      <tr data-stagger style="--i:5">
         <td class="opt"><b>PATCH &mdash; update</b><span class="tag">PATCH /v1.0/security/incidents/{id}</span></td>
         <td class="cons"><ul><li>Partial update: send only the changed properties, e.g. <code>{ "status": "resolved" }</code>; everything else is left alone.</li></ul></td>
       </tr>
-      <tr data-stagger style="--i:5">
+      <tr data-stagger style="--i:6">
         <td class="opt"><b>PUT &mdash; replace</b><span class="tag">PUT /v1.0/me/drive/items/{id}/content</span></td>
         <td class="cons"><ul><li>Create-or-replace the whole representation; idempotent. Rare in Graph outside content uploads.</li></ul></td>
       </tr>
-      <tr data-stagger style="--i:6">
+      <tr data-stagger style="--i:7">
         <td class="opt"><b>DELETE &mdash; remove</b><span class="tag">DELETE /v1.0/subscriptions/{id}</span></td>
         <td class="cons"><ul><li>Idempotent, usually <code>204 No Content</code>. Deleting twice is not an error in principle &mdash; the second call finds nothing.</li></ul></td>
       </tr>
@@ -889,7 +895,7 @@ code,.mono{ font-family:var(--mono); }
     3: "Key message: REST is not a developer topic, it is the wiring of everything a CSA touches. Every portal blade is a REST client. In GenAI, a prompt is a POST with JSON. MCP servers speak JSON-RPC 2.0 and their tools are typically wrappers over REST APIs \u2014 so an agent calling a tool is, one layer down, a REST call. Security operations (alerts, incidents, hunting) are exposed the same way.",
     4: "REST = REpresentational State Transfer (Roy Fielding, 2000). API = Application Programming Interface. JSON = JavaScript Object Notation. The word 'representation' is the bridge to JSON: the server does not send you the resource, it sends you a representation of it. Stateless means the token travels with every request.",
     5: "Walk left to right: verb, URI, headers, body \u2014 then status code, headers, body. Stress 401 vs 403: 401 = no or invalid token; 403 = valid token, missing permission (that is what you see before admin consent is granted). 429 = throttled \u2014 read Retry-After. The request-id header is what Microsoft support asks for.",
-    6: "GET is safe and idempotent. POST is the odd one out: it creates OR runs an action. runHuntingQuery only reads data but it is modelled as an action, so it is a POST with a body. PATCH is partial; PUT replaces; DELETE is idempotent. Examples are real Graph v1.0 endpoints.",
+    6: "GET is safe and idempotent. QUERY, standardized in RFC 10008, is also safe and idempotent but carries query content in the request body; use it when complex or sensitive filters do not fit cleanly in a URI and only when the server advertises support through Allow or Accept-Query. Microsoft Graph does not currently support QUERY, so its /contacts example comes from the RFC. POST is the odd one out: it creates OR runs an action. runHuntingQuery only reads data but it is modelled as an action, so it is a POST with a body. PATCH is partial; PUT replaces; DELETE is idempotent.",
     7: "JSON is the representation format. To: request bodies. Through: every hop in a Logic App, playbook, MCP tool call. From: every response, including error bodies. In PowerShell 7 Invoke-RestMethod deserializes for you; the trap is ConvertTo-Json -Depth defaulting to 2 \u2014 nested arrays get flattened to strings.",
     8: "Read the diagram top to bottom. Object = curly braces; key/value pairs separated by commas; keys are quoted strings. Six data types: string, number, boolean, null, object, array. signIns is an ARRAY OF OBJECTS \u2014 that is how every API returns a collection (think table rows). location is an OBJECT WITHIN AN OBJECT \u2014 dot notation reaches inside: $obj.location.city. No comments, no trailing commas, whitespace irrelevant, keys case-sensitive.",
     9: "Map each JSON type to what PowerShell gives you back from ConvertFrom-Json / Invoke-RestMethod. Booleans are lowercase and unquoted. null is a value, not absence. Arrays are zero-based. Use -AsHashtable when keys collide only by case or when you need a mutable dictionary.",

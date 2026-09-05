@@ -249,9 +249,9 @@ Issuance
 | order by GraphRequestAt asc
 ```
 
-The result identifies when the client secret authenticated, the Entra sign-in `CorrelationId`, the calling service principal, IP address and geolocation, and the exact Graph operation and HTTP result. Location is derived from the observed IP, so GSA, VPN, or proxy traffic can report the egress location rather than the workstation's physical location. In the example below, one Secret-mode token is traced to `POST /v1.0/security/runHuntingQuery` with `HTTP 200`.
+The refreshed evidence below traces one `clientSecret` authentication through its `uti` to `POST /v1.0/security/runHuntingQuery` with `HTTP 200` and the `ThreatHunting.Read.All` role. It also shows the app and service-principal IDs, sign-in correlation ID, token and Graph request timestamps, matching request IDs, observed IP addresses, and the IP-derived location (`DE`, Hessen, Frankfurt Am Main, with latitude/longitude). Location describes the observed egress, so GSA, VPN, or proxy traffic can report somewhere other than the workstation's physical location.
 
-![DIBSecCom Log Analytics result tracing a Secret-mode token from Entra ID issuance to its Microsoft Graph runHuntingQuery request](images/appRegGraphAPICallEvidence.png)
+![DIBSecCom result tracing a client-secret token through its UTI to a successful Graph runHuntingQuery call, including Frankfurt egress geolocation, request identifiers, and ThreatHunting.Read.All](images/appRegGraphAPICallEvidence.png)
 
 ## Troubleshooting
 

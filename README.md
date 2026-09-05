@@ -205,6 +205,7 @@ let Issuance =
   AADServicePrincipalSignInLogs
   | where TimeGenerated > ago(24h)
   | where UniqueTokenIdentifier == uti
+  | extend Location = parse_json(LocationDetails)
   | project
     Uti = UniqueTokenIdentifier,
     SignInCreatedAt = CreatedDateTime,
@@ -215,7 +216,12 @@ let Issuance =
     ClientCredentialType,
     ResourceDisplayName,
     SignInResult = ResultType,
-    IPAddress;
+    IPAddress,
+    Country = tostring(Location.countryOrRegion),
+    State = tostring(Location.state),
+    City = tostring(Location.city),
+    Latitude = toreal(Location.geoCoordinates.latitude),
+    Longitude = toreal(Location.geoCoordinates.longitude);
 
 let GraphCalls =
   MicrosoftGraphActivityLogs
@@ -243,7 +249,7 @@ Issuance
 | order by GraphRequestAt asc
 ```
 
-The result identifies when the client secret authenticated, the Entra sign-in `CorrelationId`, the calling service principal and IP address, and the exact Graph operation and HTTP result. In the example below, one Secret-mode token is traced to `POST /v1.0/security/runHuntingQuery` with `HTTP 200`.
+The result identifies when the client secret authenticated, the Entra sign-in `CorrelationId`, the calling service principal, IP address and geolocation, and the exact Graph operation and HTTP result. Location is derived from the observed IP, so GSA, VPN, or proxy traffic can report the egress location rather than the workstation's physical location. In the example below, one Secret-mode token is traced to `POST /v1.0/security/runHuntingQuery` with `HTTP 200`.
 
 ![DIBSecCom Log Analytics result tracing a Secret-mode token from Entra ID issuance to its Microsoft Graph runHuntingQuery request](images/appRegGraphAPICallEvidence.png)
 

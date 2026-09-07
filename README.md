@@ -199,50 +199,51 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 Secret mode prints the case-sensitive `unique-per-token (uti)` value after Entra ID mints the access token. In **Microsoft Defender XDR → Hunting → Advanced hunting**, select the **DIBSecCom** Log Analytics workspace, then replace the placeholder below with that value to join the service-principal token issuance event to every Microsoft Graph request made with the token:
 
 ```kusto
-let uti = "PASTE-UTI-FROM-SCRIPT";
-
+let DaysToLookBack = 5;
+let utis = dynamic([
+    "BVRqirPPQUq1t3Owy45oAA",
+    "8RbKbhwncU2R_Etde0whAA"
+]);
 let Issuance =
-  AADServicePrincipalSignInLogs
-  | where TimeGenerated > ago(24h)
-  | where UniqueTokenIdentifier == uti
-  | extend Location = parse_json(LocationDetails)
-  | project
-    Uti = UniqueTokenIdentifier,
-    SignInCreatedAt = CreatedDateTime,
-    SignInCorrelationId = CorrelationId,
-    AppId,
-    ServicePrincipalId,
-    ServicePrincipalName,
-    ClientCredentialType,
-    ResourceDisplayName,
-    SignInResult = ResultType,
-    IPAddress,
-    Country = tostring(Location.countryOrRegion),
-    State = tostring(Location.state),
-    City = tostring(Location.city),
-    Latitude = toreal(Location.geoCoordinates.latitude),
-    Longitude = toreal(Location.geoCoordinates.longitude);
-
+    AADServicePrincipalSignInLogs
+    | where TimeGenerated > ago(DaysToLookBack * 1d)
+    | where UniqueTokenIdentifier in (utis)
+    | extend Location = parse_json(LocationDetails)
+    | project
+        Uti = UniqueTokenIdentifier,
+        SignInCreatedAt = CreatedDateTime,
+        SignInCorrelationId = CorrelationId,
+        AppId,
+        ServicePrincipalId,
+        ServicePrincipalName,
+        ClientCredentialType,
+        ResourceDisplayName,
+        SignInResult = ResultType,
+        IPAddress,
+        Country = tostring(Location.countryOrRegion),
+        State = tostring(Location.state),
+        City = tostring(Location.city),
+        Latitude = toreal(Location.geoCoordinates.latitude),
+        Longitude = toreal(Location.geoCoordinates.longitude);
 let GraphCalls =
-  MicrosoftGraphActivityLogs
-  | where TimeGenerated > ago(24h)
-  | where SignInActivityId == uti or UniqueTokenId == uti
-  | extend Uti = iff(
-    isnotempty(SignInActivityId),
-    SignInActivityId,
-    UniqueTokenId)
-  | project
-    Uti,
-    GraphRequestAt = TimeGenerated,
-    TokenIssuedAt,
-    RequestId,
-    ClientRequestId,
-    RequestMethod,
-    RequestUri,
-    ResponseStatusCode,
-    GraphIPAddress = IPAddress,
-    Roles;
-
+    MicrosoftGraphActivityLogs
+    | where TimeGenerated > ago(DaysToLookBack * 1d)
+    | where SignInActivityId in (utis) or UniqueTokenId in (utis)
+    | extend Uti = iff(
+        SignInActivityId in (utis),
+        SignInActivityId,
+        UniqueTokenId)
+    | project
+        Uti,
+        GraphRequestAt = TimeGenerated,
+        TokenIssuedAt,
+        RequestId,
+        ClientRequestId,
+        RequestMethod,
+        RequestUri,
+        ResponseStatusCode,
+        GraphIPAddress = IPAddress,
+        Roles;
 Issuance
 | join kind=leftouter GraphCalls on Uti
 | project-away Uti1

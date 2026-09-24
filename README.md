@@ -199,40 +199,43 @@ Recommended sequence: registration and consent → `Secret` (app-only) → `Cert
 Secret mode prints the case-sensitive `unique-per-token (uti)` value after Entra ID mints the access token. In **Microsoft Defender XDR → Hunting → Advanced hunting**, select the **DIBSecCom** Log Analytics workspace, then replace the placeholder below with that value to join the service-principal token issuance event to every Microsoft Graph request made with the token:
 
 ```kusto
-let DaysToLookBack = 5;
+let Lookback = 5d;
 let utis = dynamic([
-    "BVRqirPPQUq1t3Owy45oAA",
-    "8RbKbhwncU2R_Etde0whAA"
+    "CloChJHfFkuWyhiA6sbLAA",
+    "YH4z27eoEUekeAR78ZEMAA"
 ]);
 let Issuance =
-    AADServicePrincipalSignInLogs
-    | where TimeGenerated > ago(DaysToLookBack * 1d)
-    | where UniqueTokenIdentifier in (utis)
-    | extend Location = parse_json(LocationDetails)
+    EntraIdSpnSignInEvents
+    | where Timestamp > ago(Lookback)
+    | where UniqueTokenId in (utis)
     | project
-        Uti = UniqueTokenIdentifier,
-        SignInCreatedAt = CreatedDateTime,
+        Uti = UniqueTokenId,
+        SignInCreatedAt = Timestamp,
         SignInCorrelationId = CorrelationId,
-        AppId,
+        AppId = ApplicationId,
+        Application,
         ServicePrincipalId,
         ServicePrincipalName,
-        ClientCredentialType,
+        IsManagedIdentity,
+        IsConfidentialClient,
         ResourceDisplayName,
-        SignInResult = ResultType,
+        SignInResult = tostring(ErrorCode),
         IPAddress,
-        Country = tostring(Location.countryOrRegion),
-        State = tostring(Location.state),
-        City = tostring(Location.city),
-        Latitude = toreal(Location.geoCoordinates.latitude),
-        Longitude = toreal(Location.geoCoordinates.longitude);
+        Country,
+        State,
+        City,
+        Latitude = toreal(Latitude),
+        Longitude = toreal(Longitude);
 let GraphCalls =
     MicrosoftGraphActivityLogs
-    | where TimeGenerated > ago(DaysToLookBack * 1d)
-    | where SignInActivityId in (utis) or UniqueTokenId in (utis)
+    | where TimeGenerated > ago(Lookback)
+    | where SignInActivityId in (utis)
+        or UniqueTokenId in (utis)
     | extend Uti = iff(
         SignInActivityId in (utis),
         SignInActivityId,
-        UniqueTokenId)
+        UniqueTokenId
+    )
     | project
         Uti,
         GraphRequestAt = TimeGenerated,

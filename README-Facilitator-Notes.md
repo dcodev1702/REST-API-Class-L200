@@ -93,12 +93,12 @@ Your commercial tenant therefore just works with no switches; a GCC High or DoD 
 
    Every run clears the prior clipboard/token variables and copies the complete JWT to the clipboard for jwt.ms. File capture is optional. Delegated auth requires setup with `-IncludeDelegatedScope`.
 
-   Expected output includes `Clipboard and transient demo-token variables reset`, `unique-per-token (uti): <value>` in Secret mode, `Complete JWT copied to clipboard`, `HTTP 200`, the schema/results, and the saved response path.
+   Expected output includes `Clipboard and transient demo-token variables reset`, cyan `unique-per-token (uti): <value>` in Secret and Certificate modes, `Complete JWT copied to clipboard`, `HTTP 200`, the schema/results, and the saved response path.
 
 ## Live-demo runbook (slide 20)
 
 1. **Run 1 — Secret.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Secret`. Narrate discovery → secret token POST → `unique-per-token (uti)` → hunting POST. This remains an app-only client-credentials flow. Run it twice to show that `uti` changes while `appid`/`azp`, `tid`, `aud`, and `roles` remain stable; paste either clipboard token into jwt.ms.
-2. **Run 2 — Certificate.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate`. Match `<app registration name> - TRAINING` in the local store to the app, then use the `TRAINING ONLY` details block/settings for client ID, object ID and tenant ID correlation. The private key signs a client assertion; Entra stores only the public key. Paste the new clipboard token into jwt.ms: `roles` is unchanged because the identity and permission are unchanged.
+2. **Run 2 — Certificate.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Certificate`. Match `<app registration name> - TRAINING` in the local store to the app, then use the `TRAINING ONLY` details block/settings for client ID, object ID and tenant ID correlation. The private key signs a client assertion; Entra stores only the public key. Point out the same cyan `unique-per-token (uti)` output as Secret mode, then paste the new clipboard token into jwt.ms: `roles` is unchanged because the identity and permission are unchanged.
 3. **Run 3 — Delegated.** `.\scripts\Invoke-HuntingQuery.ps1 -AuthMode Delegated`. Windows Web Account Manager presents the account selector. This public-client flow uses no certificate or client secret. Compare the resulting `scp` and user claims with both app-only tokens.
 4. **Teardown.** Clear the clipboard (`Set-Clipboard -Value ''`) and remove saved `.jwt` files. Preview `.\scripts\Remove-HuntingAppRegistration.ps1 -WhatIf`; verify its app IDs and certificate thumbprint against the setup output, then run `.\scripts\Remove-HuntingAppRegistration.ps1`. The script prompts once and removes the secrets, registered certificate keys, local private-key certificate, enterprise app/consent, app registration, environment secret, and settings file.
 

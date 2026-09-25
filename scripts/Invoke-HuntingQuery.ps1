@@ -26,8 +26,8 @@
                    New-HuntingAppRegistration.ps1. No user is involved; the token carries a "roles" claim.
 
     Before authentication, the script clears the clipboard and transient demo-token variables. After authentication,
-    the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. Secret mode also prints the
-    token's unique-per-token (uti) value. -TokenOutFile optionally writes the same complete JWT to disk.
+    the complete raw JWT is copied to the clipboard for direct use with https://jwt.ms. Secret and Certificate modes
+    also print the token's unique-per-token (uti) value. -TokenOutFile optionally writes the same complete JWT to disk.
 
     Endpoints are NOT hard-coded. Resolution order:
       1. -Environment Public | AzureGov, when given (URLs pulled from Get-MgEnvironment when the SDK is present).
@@ -184,6 +184,24 @@ function Get-DemoJwtPayload {
     catch {
         throw "The JWT payload could not be decoded: $($_.Exception.Message)"
     }
+}
+
+function Write-DemoTokenIdentifier {
+    param(
+        [Parameter(Mandatory)]
+        [string] $AccessToken,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Secret', 'Certificate')]
+        [string] $Mode
+    )
+
+    # DISPLAY ONLY: uti is Entra's unique, per-token identifier. Decoding here does not validate the JWT.
+    $claims = Get-DemoJwtPayload -AccessToken $AccessToken
+    if ([string]::IsNullOrWhiteSpace([string] $claims.uti)) {
+        throw "The $Mode-mode access token does not contain the expected 'uti' claim."
+    }
+    Write-Host "unique-per-token (uti): $($claims.uti)" -ForegroundColor Cyan
 }
 
 function Import-DemoMsal {
@@ -401,10 +419,7 @@ try {
             $accessToken = $tokenResponse.access_token
             $token = ConvertTo-DemoSecureString -Value $accessToken
             Write-Host ("Token acquired: type={0}, expires in {1}s  (paste into https://jwt.ms to see aud / roles / exp)" -f $tokenResponse.token_type, $tokenResponse.expires_in) -ForegroundColor Green
-            # DISPLAY ONLY: uti is Entra's unique, per-token identifier. Decoding here does not validate the JWT.
-            $claims = Get-DemoJwtPayload -AccessToken $accessToken
-            if ([string]::IsNullOrWhiteSpace([string] $claims.uti)) { throw "The Secret-mode access token does not contain the expected 'uti' claim." }
-            Write-Host "unique-per-token (uti): $($claims.uti)" -ForegroundColor Cyan
+            Write-DemoTokenIdentifier -AccessToken $accessToken -Mode Secret
             Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
             $form.Clear()                                                 # drop the plain-text secret as soon as possible
             $form = $null
@@ -463,6 +478,7 @@ try {
             $accessToken = $certificateTokenResult.AccessToken
             $token = ConvertTo-DemoSecureString -Value $accessToken
             Write-Host ("Token acquired with certificate {0}; expires {1:u}" -f $certificate.Thumbprint, $certificateTokenResult.ExpiresOn.UtcDateTime) -ForegroundColor Green
+            Write-DemoTokenIdentifier -AccessToken $accessToken -Mode Certificate
             Publish-DemoAccessToken -AccessToken $accessToken -Path $TokenOutFile
             $accessToken = $null
             $certificateTokenResult = $null

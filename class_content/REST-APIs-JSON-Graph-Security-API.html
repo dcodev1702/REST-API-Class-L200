@@ -390,6 +390,15 @@ code,.mono{ font-family:var(--mono); }
 .hint.hide{ opacity:0; pointer-events:none; }
 
 /* ===================== reduced motion ===================== */
+#simwrap{ position:fixed; inset:0; z-index:80; background:#06060a; }
+#simwrap[hidden]{ display:none; }
+#simwrap iframe{ width:100%; height:100%; border:0; display:block; }
+.s-divider .dbtn{ margin-top:9.5cqh; font-size:1.55cqh; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--az-bright); text-decoration:none; font-weight:600;
+  border:1px solid rgba(80,230,255,.45); border-radius:6cqh; padding:1.7cqh 3.2cqw;
+  background:rgba(80,230,255,.06); transition:background .25s ease, border-color .25s ease; }
+.s-divider .dbtn:hover{ background:rgba(80,230,255,.14); border-color:var(--az-bright); }
+
 @media (prefers-reduced-motion: reduce){
   .slide{ transition:opacity .2s linear; transform:none !important; }
   .slide [data-stagger]{ animation:none !important; opacity:1 !important; transform:none !important; }
@@ -848,6 +857,13 @@ code,.mono{ font-family:var(--mono); }
   <div class="term-cap" data-stagger style="--i:3">Run secret &rarr; certificate &rarr; delegated. Paste each automatically copied JWT into jwt.ms and compare <code>roles</code> with <code>scp</code>.</div>
 </section>
 
+    <section class="slide s-divider" data-kicker="">
+      <div class="dglow"></div>
+      <div class="dlabel" data-stagger style="--i:0">Certificate auth</div>
+      <div class="dword" data-stagger style="--i:1"><span class="grad">Simulator</span></div>
+      <a class="dbtn" data-stagger style="--i:2" href="Sim-Certificate-Client-Credentials.html">&#9654;&nbsp; Open the simulator</a>
+    </section>
+
   </div><!-- /deck -->
 
   <!-- bottom chrome -->
@@ -863,6 +879,8 @@ code,.mono{ font-family:var(--mono); }
 
   <!-- hint -->
   <div class="hint" id="hint"><span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> navigate</span><span><kbd>N</kbd> notes</span><span><kbd>F</kbd> fullscreen</span></div>
+
+  <div id="simwrap" hidden><iframe id="simframe" title="Simulator"></iframe></div>
 
   <!-- presenter notes -->
   <aside class="notes" id="notes" aria-live="polite">
@@ -910,6 +928,7 @@ code,.mono{ font-family:var(--mono); }
     18: "Cheat sheet \u2014 leave it up during questions. Emphasize which switches are PowerShell 7-only (-StatusCodeVariable, -SkipHttpErrorCheck) or 6+ (-Authentication, -Token, -ResponseHeadersVariable) \u2014 Windows PowerShell 5.1 does not have them. -SkipHttpErrorCheck is how you read the JSON error body from Graph instead of catching an exception.",
     19: "Prerequisites: Defender XDR and Entra ID P2; PowerShell 7.3 or later; Microsoft.Graph.Authentication; and the setup script run as an active Privileged Role Administrator or Global Administrator. Before its first resource write, setup verifies every delegated scope, the operator's active transitive role (including PIM), and the target ThreatHunting.Read.All permission. It then creates the app, consent, secret, and a 12-month certificate named <app name> - TRAINING in Current User Personal. The TRAINING ONLY details show app name, client ID, object ID, tenant ID, thumbprints and validity. HuntingDemo.settings.json stores only identifiers and certificate metadata; certificate files are never exported and their extensions are Git-ignored.",
     20: "Pivot to PowerShell 7. Run Secret twice: unique-per-token (uti) changes because Entra minted a different token, while appid, tid, aud and roles stay stable. Paste one automatically copied JWT into jwt.ms. Run Certificate, point out its matching cyan uti output, and show that roles, appid and tid are unchanged even though proof changed to a signed assertion. Run Delegated and compare scp plus user claims. Each run begins by clearing stale token variables and clipboard, then copies all three JWT segments. Finish by clearing the clipboard, deleting any .jwt files, removing the local certificate with -DeleteKey, and deleting the disposable app.",
+    21: "Open the Certificate simulator. It starts paused and uses fictional identifiers only. Steps 1-2 connect the Windows Current User Personal certificate store with the public certificate and Graph application permission in Entra. Steps 5-8 distinguish the app-signed client assertion sent to Entra from the Entra-issued bearer token sent to Graph. Step 9 shows the same cyan UTI as the live script. Step 14 shows optional LAW correlation: token UTI is not the certificate thumbprint or assertion jti. Logs are outside the runtime authentication path. Use Slides inside the simulator to close the overlay.",
   };
 
   // ---- build progress segments ----
@@ -1025,6 +1044,26 @@ code,.mono{ font-family:var(--mono); }
   window.addEventListener('hashchange',()=>{
     const h = Math.min(Math.max(parseInt(location.hash.slice(1),10)||1,1),N)-1;
     if(h!==idx) go(h);
+  });
+
+  // ---- simulator overlay: no navigation, so fullscreen survives both ways ----
+  const simwrap = document.getElementById('simwrap');
+  const simframe = document.getElementById('simframe');
+  document.querySelectorAll('.s-divider .dbtn').forEach(a=>{
+    a.addEventListener('click',e=>{
+      e.preventDefault();
+      if(!simframe.getAttribute('src')) simframe.src = a.getAttribute('href');
+      simwrap.hidden = false;
+      setTimeout(()=>{ try{ simframe.contentWindow.focus(); }catch(_){ } },60);
+    });
+  });
+  window.addEventListener('message',e=>{
+    if(e.data && e.data.type==='close-sim'){
+      simwrap.hidden = true;
+      const d = slides.findIndex(s=>s.querySelector('.dbtn'));
+      go(d>=0 ? Math.min(d+1, slides.length-1) : idx);
+      window.focus();
+    }
   });
 })();
 </script>

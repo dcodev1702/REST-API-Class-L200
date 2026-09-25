@@ -1,15 +1,16 @@
 # REST APIs, JSON & the Microsoft Graph Security API — facilitator notes
 
 **Presenter:** Lorenzo J. Ireland · Cloud Solution Architect (AI+Security) · Microsoft
-**Audience:** Microsoft Cloud Solution Architects · **Format:** 20-slide HTML deck + three interactive simulations + live PowerShell 7 demo (secret, certificate, then delegated)
+**Audience:** Microsoft Cloud Solution Architects · **Format:** 21-slide HTML deck + four interactive simulations + live PowerShell 7 demo (secret, certificate, then delegated)
 
 ## What is in this package
 
 | File | Purpose |
 | --- | --- |
-| `class_content/REST-APIs-JSON-Graph-Security-API.html` | The 20-slide deck. Open in any browser (Edge recommended). Self-contained — no network needed to present. |
+| `class_content/REST-APIs-JSON-Graph-Security-API.html` | The 21-slide deck. Open in any browser (Edge recommended). Self-contained — no network needed to present. Slide 21 launches the local Certificate simulator in an overlay. |
 | `class_content/Sim-App-Registration-Admin-Consent.html` | 13-step walkthrough of the setup script: app registration, correlated training certificate, secret, service principal, `ThreatHunting.Read.All`, and programmatic admin consent. |
 | `class_content/Sim-Secret-Client-Credentials.html` | 12-step walkthrough of Secret mode: discovery, app-only client-credentials token, `runHuntingQuery`, 401/403 boundaries, and JSON output. |
+| [`class_content/Sim-Certificate-Client-Credentials.html`](class_content/Sim-Certificate-Client-Credentials.html) | 14 steps: local certificate and key storage, portal public certificate and consent, MSAL assertion, access token, cyan UTI, Graph hunting, saved JSON, and optional LAW correlation. Fictional data only. |
 | `class_content/Sim-Delegated-Sign-In-Consent.html` | 13-step walkthrough of delegated WAM sign-in: Windows account broker, admin-consent boundary, `scp`, Graph call, and JSON output. |
 | `extras/Identity_101.md` | Optional identity primer: app-only scopes, secrets, certificates, managed identities, and Graph application permissions. |
 | `extras/Identity_102.md` | Optional app-role-assignment deep dive: `principalId`, `resourceId`, and `appRoleId`. |
@@ -24,12 +25,15 @@
 
 - **← / →** or **Space** — next / previous · **N** — speaker notes (every slide has them) · **F** — full screen · **1–9** — jump to a slide · **Home / End** — first / last · click the progress bar to jump.
 - Slide 20 is an animated mock terminal that "runs" the script — your cue to switch to the real `pwsh` window.
+- Slide 21 opens the Certificate simulator without leaving the deck; its **Slides** control closes the overlay.
 
 ### Presenting the simulations
 
-- Run the simulators in their existing order, then insert live `Certificate` mode between secret app-only and delegated. This lets learners compare two app-only `roles` tokens with one delegated `scp` token.
+- Run registration and consent, Secret, Certificate, then Delegated. This lets learners compare two app-only `roles` tokens with one delegated `scp` token.
 - Select **Start simulation**, then **Run the script** or **Run the call**. Use **Space** / **→** to advance, **←** to step back, numbered progress segments to jump, and **Autoplay** when narration does not need to pause on each payload.
 - Use the simulators before the live terminal when you want every learner to see the same requests, responses, permission boundaries, and failure states. Use the **Slides** control to return to the deck.
+- In the Certificate simulator, pause at steps 1-2 to compare `Cert:\CurrentUser\My\<thumbprint>` with **Entra > App registrations > Certificates & secrets > Certificates** and **API permissions**. Certificate records are registry-backed; private-key files are provider-managed, not a `.pfx` in the repository.
+- Pause at steps 5-8 to distinguish the app-signed assertion (for Entra) from the Entra-issued access token (for Graph). At step 9 show the cyan `uti`; at step 14 correlate that token ID, not the thumbprint or assertion `jti`. The log entries are illustrative and depend on diagnostic collection in a live tenant.
 
 ## How the endpoints are resolved (Public vs Azure Government)
 

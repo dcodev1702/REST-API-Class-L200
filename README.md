@@ -1,6 +1,6 @@
 # REST APIs, JSON & the Microsoft Graph Security API
 
-> A hands-on training kit for Cloud Solution Architects: a 20-slide deck, three interactive request-flow simulations, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using `ThreatHunting.Read.All` with a client secret, a correlated training certificate, and delegated sign-in.
+> A hands-on training kit for Cloud Solution Architects: a 21-slide deck, four interactive request-flow simulations, an "Anatomy of a JSON Object" diagram, and a live PowerShell 7 demo that runs a Microsoft Defender XDR advanced hunting query through the **Microsoft Graph Security API** (`POST /security/runHuntingQuery`) using `ThreatHunting.Read.All` with a client secret, a correlated training certificate, and delegated sign-in.
 
 ![PowerShell 7.3+](https://img.shields.io/badge/PowerShell-7.3%2B-5391FE?logo=powershell&logoColor=white)
 ![Microsoft Graph v1.0](https://img.shields.io/badge/Microsoft%20Graph-v1.0-0078D4)
@@ -22,9 +22,10 @@
 
 | File | Purpose |
 | --- | --- |
-| [`REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) | The 20-slide deck. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
+| [`REST-APIs-JSON-Graph-Security-API.html`](class_content/REST-APIs-JSON-Graph-Security-API.html) | The 21-slide deck, including a Certificate simulator launcher. One self-contained HTML file (Microsoft dark Fluent style) — open in any browser, present with **F**, speaker notes with **N**. |
 | [`Sim-App-Registration-Admin-Consent.html`](class_content/Sim-App-Registration-Admin-Consent.html) | 13-step simulation of creating the app registration, correlated training certificate, client secret, service principal, and programmatic admin consent through Microsoft Graph. |
 | [`Sim-Secret-Client-Credentials.html`](class_content/Sim-Secret-Client-Credentials.html) | 12-step simulation of Secret mode: OpenID discovery, the app-only OAuth 2.0 client-credentials token request, `runHuntingQuery`, error boundaries, and JSON output. |
+| [`Sim-Certificate-Client-Credentials.html`](class_content/Sim-Certificate-Client-Credentials.html) | 14-step simulation linking the Windows certificate store to the Entra app registration, MSAL's signed assertion, token issuance, cyan UTI output, the Graph hunting request, and optional LAW evidence. |
 | [`Sim-Delegated-Sign-In-Consent.html`](class_content/Sim-Delegated-Sign-In-Consent.html) | 13-step simulation of delegated Windows Web Account Manager sign-in, admin consent, the `scp` claim, and the Graph hunting call. |
 | [`Identity_101.md`](extras/Identity_101.md) | Supplemental primer on app-only scopes, client secrets, certificates, managed identities, and Microsoft Graph application permissions. |
 | [`Identity_102.md`](extras/Identity_102.md) | Deep dive into `principalId`, `resourceId`, and `appRoleId` for managed-identity app-role assignments. |
@@ -182,13 +183,24 @@ Open [`class_content/REST-APIs-JSON-Graph-Security-API.html`](class_content/REST
 | **F** | Full screen |
 | **1–9**, **Home / End** | Jump to slide / first / last |
 
-Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP methods, including RFC 10008 `QUERY` → why JSON → **JSON anatomy diagram** → JSON types ↔ PowerShell → Graph Security API (endpoint, request, quotas) → `ThreatHunting.Read.All` & admin consent → token flow → the KQL → Step 1 discovery + token → Step 2 `Invoke-RestMethod` switch by switch → Step 3 response → JSON file → switch reference → prerequisites & Microsoft Learn → live demo / Q&A.
+Outline: why REST matters → REST · API · JSON → anatomy of a call → HTTP methods, including RFC 10008 `QUERY` → why JSON → **JSON anatomy diagram** → JSON types ↔ PowerShell → Graph Security API (endpoint, request, quotas) → `ThreatHunting.Read.All` & admin consent → token flow → the KQL → Step 1 discovery + token → Step 2 `Invoke-RestMethod` switch by switch → Step 3 response → JSON file → switch reference → prerequisites & Microsoft Learn → live demo / Q&A → Certificate simulator launcher.
 
 ### Interactive simulations
 
 Open any simulator from `class_content`, select **Start simulation**, then choose **Run the script** or **Run the call**. Use **Space** or **→** to advance, **←** to step back, the numbered progress segments to jump, and **Autoplay** for an unattended walkthrough. The **Slides** control returns to the deck.
 
 Recommended sequence: registration and consent → `Secret` (app-only) → `Certificate` (app-only) → `Delegated`. Compare the two app-only `roles` tokens with the delegated `scp` token at jwt.ms.
+
+#### Certificate authentication: local store to Graph
+
+Open the [Certificate simulator](class_content/Sim-Certificate-Client-Credentials.html) directly or select **Open the simulator** on deck slide 21. It starts paused and runs offline; all identifiers, token strings, rows, and log entries are fictional. It never signs in, accesses the clipboard, queries LAW, or reads local certificates.
+
+- **On Windows:** the runtime opens `Cert:\CurrentUser\My\<thumbprint>`. Inspect it in `certmgr.msc` under **Personal > Certificates**. The default registry-backed certificate record is under `HKCU\Software\Microsoft\SystemCertificates\My\Certificates\<thumbprint>`. The software private key is stored separately: typically `%APPDATA%\Microsoft\Crypto\Keys` for CNG or `%APPDATA%\Microsoft\Crypto\RSA\<SID>` for legacy CAPI. The provider determines the filename; it is not the certificate thumbprint. The setup script writes no `.pfx` file to disk.
+- **In the [Entra admin center](https://entra.microsoft.com):** open **App registrations > your app > Certificates & secrets > Certificates** and match the public certificate thumbprint. Under **API permissions**, verify **Microsoft Graph > Application > ThreatHunting.Read.All** and admin consent. The setup script registers public certificate bytes through `keyCredentials` and grants the app role programmatically; manual portal upload is an alternative, not a step repeated for every call.
+- **At runtime:** MSAL uses the local private key to sign a client assertion for Entra. Entra checks it with the registered public key and issues an app-only Graph access token. `Invoke-RestMethod` sends that bearer token and a JSON hunting query to Graph. The private key never leaves Windows; the client assertion is not sent to Graph. This is not mutual TLS or a certificate-bound access token.
+- **For correlation:** distinguish the certificate **thumbprint**, assertion **jti**, and access-token **uti**. The optional LAW illustration matches `AADServicePrincipalSignInLogs.UniqueTokenIdentifier` to `MicrosoftGraphActivityLogs.UniqueTokenId`. The newer Defender `EntraIdSpnSignInEvents` table instead uses `UniqueTokenId` and does not expose `ClientCredentialType`. Collection must be configured, logs may arrive later, and one token can match multiple API calls.
+
+Protocol references: [certificate credentials and portal setup](https://learn.microsoft.com/entra/identity-platform/certificate-credentials), [Windows system store locations](https://learn.microsoft.com/windows/win32/seccrypto/system-store-locations), [private-key storage directories](https://learn.microsoft.com/windows/win32/seccng/key-storage-and-retrieval), and [Graph runHuntingQuery](https://learn.microsoft.com/graph/api/security-security-runhuntingquery?view=graph-rest-1.0).
 
 ## The diagram
 
